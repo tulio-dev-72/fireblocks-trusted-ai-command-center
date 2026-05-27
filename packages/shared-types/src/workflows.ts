@@ -58,6 +58,18 @@ export const DelayedPaymentsInvestigationResponseSchema = z.object({
   summary: z.string(),
   ai_answer: z.string(),
   explanation: z.string(),
+  analysis: z
+    .object({
+      summary: z.string(),
+      operational_impact: z.string(),
+      root_cause: z.string(),
+      evidence: z.string(),
+      recommended_action: z.string(),
+      audit_reference: z.string(),
+      confidence: z.enum(["high", "medium", "low"]),
+      missing_evidence: z.array(z.string()).default([]),
+    })
+    .optional(),
   delay_groups: z.array(DelayedTransactionGroupSchema),
   evidence_cards: z.array(EvidenceCardSchema),
   evidence: z.array(EvidenceItemSchema),

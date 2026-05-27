@@ -1,7 +1,7 @@
 import type { Page } from "./navigation";
 
 export const PAGE_SUBTITLES: Record<Page, string> = {
-  home: "Treasury intelligence, evidence-backed investigations, and operational visibility over live Fireblocks data",
+  home: "Evidence-backed operational intelligence built on top of Fireblocks infrastructure",
   investigator: "Evidence-backed root-cause analysis for delayed and non-final treasury transfers",
   evidence: "Retrieved Fireblocks records packaged for workflow citation and audit review",
   trust: "Runtime boundaries for data access, RBAC, audit logging, and LLM provider configuration",

@@ -8,8 +8,7 @@ import { ProvenanceBadge } from "./ProvenanceBadge";
 import { InvestigationDelayChart } from "./InvestigationDelayChart";
 import { WorkflowStepper } from "./WorkflowStepper";
 
-const DEFAULT_QUESTION =
-  "Which non-final transactions are delayed, and what Fireblocks status or approval state is blocking settlement?";
+const DEFAULT_QUESTION = "Why are these treasury payments delayed?";
 
 const REASON_COLORS: Record<string, string> = {
   approval_pending: "reason-approval",
@@ -20,15 +19,17 @@ const REASON_COLORS: Record<string, string> = {
 };
 
 interface Props {
+  initialQuestion?: string;
   onInvestigationComplete?: (correlationId: string) => void;
   onViewAudit?: () => void;
 }
 
 export function DelayedPaymentsInvestigator({
+  initialQuestion,
   onInvestigationComplete,
   onViewAudit,
 }: Props) {
-  const [question, setQuestion] = useState(DEFAULT_QUESTION);
+  const [question, setQuestion] = useState(initialQuestion ?? DEFAULT_QUESTION);
   const [step, setStep] = useState(0);
   const [result, setResult] = useState<DelayedPaymentsInvestigationResponse | null>(null);
   const [escalation, setEscalation] = useState<EscalationSummaryResponse | null>(null);
@@ -117,6 +118,33 @@ export function DelayedPaymentsInvestigator({
             </div>
             <p className="analysis-summary">{result.summary}</p>
             <p className="analysis-explanation">{result.explanation}</p>
+
+            {result.analysis && (
+              <div className="institutional-analysis">
+                <h3>Operational Intelligence Assessment</h3>
+                <dl className="analysis-dl">
+                  <dt>Operational Impact</dt>
+                  <dd>{result.analysis.operational_impact}</dd>
+                  <dt>Root Cause</dt>
+                  <dd>{result.analysis.root_cause}</dd>
+                  <dt>Evidence</dt>
+                  <dd>{result.analysis.evidence}</dd>
+                  <dt>Recommended Action</dt>
+                  <dd>{result.analysis.recommended_action}</dd>
+                  <dt>Audit Reference</dt>
+                  <dd className="mono">{result.analysis.audit_reference}</dd>
+                  <dt>Confidence</dt>
+                  <dd className={`confidence-${result.analysis.confidence}`}>
+                    {result.analysis.confidence.toUpperCase()}
+                  </dd>
+                </dl>
+                {result.analysis.missing_evidence.length > 0 && (
+                  <p className="missing-evidence">
+                    Missing evidence: {result.analysis.missing_evidence.join("; ")}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="delay-groups">
               {result.delay_groups.map((group) => (

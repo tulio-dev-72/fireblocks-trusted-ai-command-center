@@ -24,6 +24,7 @@ import {
   generateGroundedAnswer,
   resolveLlmConfig,
 } from "./llm-provider.js";
+import { buildInstitutionalAnalysis, formatInstitutionalAnswer } from "./institutional-analysis.js";
 
 export class DelayedPaymentsWorkflow {
   constructor(
@@ -169,12 +170,23 @@ export class DelayedPaymentsWorkflow {
       },
     });
 
+    const analysis = buildInstitutionalAnalysis({
+      question,
+      answer: llmResult.answer,
+      citations,
+      evidence,
+      correlationId,
+      auditEventId: auditEvent.id,
+      delaySummary: `${delayedCount} delayed payment(s); ${pendingApprovals.length} pending approval(s).`,
+    });
+
     return {
       workflow: "delayed_payments_investigator",
       question,
       summary: `${delayedCount} delayed payment(s) across ${delayGroups.length} root-cause group(s); ${pendingApprovals.length} pending approval(s).`,
-      ai_answer: llmResult.answer,
+      ai_answer: formatInstitutionalAnswer(analysis),
       explanation,
+      analysis,
       delay_groups: delayGroups,
       evidence_cards: evidenceCards,
       evidence,

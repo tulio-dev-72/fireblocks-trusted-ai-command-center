@@ -16,6 +16,8 @@ import type {
 import type { Page } from "../lib/navigation";
 import { OperationalCharts } from "./OperationalCharts";
 import { SystemStatusPanel } from "./SystemStatusPanel";
+import { InvestigationPromptCards } from "./InvestigationPromptCards";
+import { OperationalReadinessCard } from "./OperationalReadinessCard";
 
 interface ApiRecord<T> {
   data?: T;
@@ -24,7 +26,7 @@ interface ApiRecord<T> {
 }
 
 interface HomePageProps {
-  onStartInvestigation: () => void;
+  onStartInvestigation: (prompt?: string) => void;
   onNavigate: (page: Page) => void;
 }
 
@@ -105,14 +107,24 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
     <div className="home-page">
       {loadError && <div className="error-banner">{loadError}</div>}
 
-      {/* 1. Treasury Operations / Operational Intelligence */}
+      <section className="home-hero">
+        <span className="section-eyebrow">Operational Intelligence Command Center</span>
+        <h2 className="treasury-title">Operational Intelligence Command Center</h2>
+        <p className="treasury-lead">
+          Evidence-backed operational intelligence built on top of Fireblocks infrastructure.
+        </p>
+        <p className="home-supporting-copy">
+          Operational investigations across treasury operations, settlements, approvals, liquidity,
+          and policy workflows using live operational evidence and governed AI reasoning.
+        </p>
+        <p className="home-trust-line">
+          Fireblocks remains the trusted execution and governance layer. AI is used for operational
+          reasoning, investigation, summarization, and recommendation generation.
+        </p>
+      </section>
+
       <section className="treasury-operations-header">
         <span className="section-eyebrow">Treasury Operations</span>
-        <h2 className="treasury-title">Operational intelligence over live Fireblocks data</h2>
-        <p className="treasury-lead">
-          Settlement pipeline, approval queue, and liquidity posture from the same transaction and
-          balance records used by evidence-backed AI investigations.
-        </p>
         <div className="operational-summary">
           <div className="summary-stat">
             <span className="summary-value">{loading ? "—" : nonFinalCount}</span>
@@ -129,46 +141,10 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
         </div>
       </section>
 
-      {/* 2. Delayed Payments Investigator — primary workflow */}
-      <section className="investigator-cta-panel">
-        <div className="investigator-cta-copy">
-          <span className="section-eyebrow">Primary Workflow</span>
-          <h2>Delayed Payments Investigator</h2>
-          <p>
-            Classify root causes for non-final transfers, assemble an evidence bundle from Fireblocks
-            transactions, approvals, balances, and policy — then return a cited operational analysis
-            with audit correlation.
-          </p>
-          <ul className="investigator-highlights">
-            <li>RBAC-gated retrieval before any LLM context is built</li>
-            <li>Root-cause grouping by Fireblocks status and approval state</li>
-            <li>Evidence citations traceable to API records</li>
-            <li>Prepare-only recommendations — no transaction execution</li>
-          </ul>
-        </div>
-        <div className="investigator-cta-action">
-          <div className="investigator-cta-metrics">
-            {delayedCount > 0 && (
-              <span className="cta-metric cta-metric-warn">{delayedCount} require investigation</span>
-            )}
-            {nonFinalCount > 0 && delayedCount === 0 && (
-              <span className="cta-metric">{nonFinalCount} non-final in pipeline</span>
-            )}
-          </div>
-          <button className="btn-primary btn-xl" onClick={onStartInvestigation} type="button">
-            Run Delayed Payments Investigator
-          </button>
-          <button
-            className="btn-secondary"
-            type="button"
-            onClick={() => onNavigate("investigator")}
-          >
-            Open workflow
-          </button>
-        </div>
-      </section>
+      <InvestigationPromptCards onSelectPrompt={(prompt) => onStartInvestigation(prompt)} />
 
-      {/* 3. Operational Telemetry */}
+      <OperationalReadinessCard onNavigate={onNavigate} />
+
       {loading && !chartData ? (
         <OperationalCharts
           data={{
@@ -184,51 +160,36 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
         chartData && <OperationalCharts data={chartData} />
       )}
 
-      {/* 4. Evidence / Investigation panels */}
       <section className="panel evidence-access-section">
-        <span className="section-eyebrow">Investigation &amp; Evidence</span>
+        <span className="section-eyebrow">Evidence / Investigation Results</span>
         <h2>Evidence-backed analysis surfaces</h2>
         <p className="panel-desc">
           Review retrieved Fireblocks records, workflow outputs, and audit trails from the same
           operational session.
         </p>
         <div className="evidence-access-grid">
-          <button
-            type="button"
-            className="access-card"
-            onClick={() => onNavigate("evidence")}
-          >
+          <button type="button" className="access-card" onClick={() => onNavigate("evidence")}>
             <h3>Evidence Library</h3>
             <p>Transactions, approvals, balances, and policy bundles with provenance metadata.</p>
             <span className="access-link">Open library →</span>
           </button>
-          <button
-            type="button"
-            className="access-card"
-            onClick={() => onNavigate("investigator")}
-          >
+          <button type="button" className="access-card" onClick={() => onNavigate("investigator")}>
             <h3>AI Operational Analysis</h3>
-            <p>Run or review the Delayed Payments Investigator with cited evidence and recommendations.</p>
+            <p>Run or review investigations with cited evidence and institutional recommendations.</p>
             <span className="access-link">Open investigator →</span>
           </button>
-          <button
-            type="button"
-            className="access-card"
-            onClick={() => onNavigate("audit")}
-          >
+          <button type="button" className="access-card" onClick={() => onNavigate("audit")}>
             <h3>Audit Trail</h3>
-            <p>Prompt, retrieval, and workflow events correlated by investigation ID.</p>
+            <p>Prompt, retrieval, policy, and workflow events correlated by investigation ID.</p>
             <span className="access-link">View audit log →</span>
           </button>
         </div>
       </section>
 
-      {/* 5. Operational Integrity (demoted) */}
       <SystemStatusPanel demoted />
 
-      {/* 6. Infrastructure / Trust details */}
       <section className="infrastructure-footer">
-        <span className="section-eyebrow">Infrastructure &amp; Trust</span>
+        <span className="section-eyebrow">Architecture / Trust Details</span>
         <div className="infrastructure-links">
           <button type="button" className="infra-link" onClick={() => onNavigate("trust")}>
             Trust Center

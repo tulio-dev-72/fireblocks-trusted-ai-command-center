@@ -12,6 +12,7 @@ import {
   generateGroundedAnswer,
   resolveLlmConfig,
 } from "./llm-provider.js";
+import { buildInstitutionalAnalysis, formatInstitutionalAnswer } from "./institutional-analysis.js";
 
 export interface PipelineContext {
   correlationId: string;
@@ -111,10 +112,20 @@ export class EvidencePipeline {
       },
     });
 
-    return {
+    const analysis = buildInstitutionalAnalysis({
       question,
       answer: llmResult.answer,
-      summary: llmResult.summary,
+      citations,
+      evidence,
+      correlationId: ctx.correlationId,
+      auditEventId: auditEvent.id,
+    });
+
+    return {
+      question,
+      answer: formatInstitutionalAnswer(analysis),
+      summary: analysis.summary,
+      analysis,
       citations,
       evidence,
       model_provider: llmResult.provider,

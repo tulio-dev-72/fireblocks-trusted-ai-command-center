@@ -112,6 +112,8 @@ export const AuditEventTypeSchema = z.enum([
   "sandbox_activity",
   "workflow_executed",
   "escalation_prepared",
+  "webhook_ingested",
+  "worker_job",
   "error",
 ]);
 export type AuditEventType = z.infer<typeof AuditEventTypeSchema>;
@@ -174,3 +176,4 @@ export * from "./system-actors.js";
 export * from "./fireblocks-auth.js";
 export * from "./sandbox-readiness.js";
 export * from "./sandbox-activity.js";
+export * from "./agents.js";

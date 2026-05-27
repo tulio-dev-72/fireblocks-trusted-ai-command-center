@@ -1,7 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { loadConfig, getCorsOrigins, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
 import { AuthService, extractBearerToken, AuthError, type Permission } from "@taicc/auth";
-import { AuditLogger, createAuditLogger } from "@taicc/audit";
+import { AuditLogger, createAuditLogger, EvidenceStore } from "@taicc/audit";
+import {
+  evaluateRequestPolicy,
+  initPolicyEngine,
+  isSandboxAdminWritePath,
+  PolicyDeniedError,
+} from "./policy-guard.js";
+import { tryHandleEnterpriseRoute } from "./enterprise-routes.js";
+import { createOperationalQueue, type QueueHandle } from "@taicc/queue";
 import {
   createFireblocksClient,
   runFireblocksAuthDiagnostics,
@@ -131,6 +139,8 @@ let dataService!: ReturnType<typeof createDataService>;
 let evidencePipeline!: ReturnType<typeof createEvidencePipeline>;
 let delayedPaymentsWorkflow!: ReturnType<typeof createDelayedPaymentsWorkflow>;
 let sandboxActivityGenerator!: SandboxActivityGenerator;
+let evidenceStore: EvidenceStore | null = null;
+let jobQueue: QueueHandle | null = null;
 let bootstrapped = false;
 let shutdownAudit: (() => Promise<void>) | null = null;
 
@@ -142,6 +152,25 @@ async function bootstrap(): Promise<() => Promise<void>> {
   });
   auditLogger = auditHandle.logger;
   auditStoreKind = auditHandle.storeKind;
+
+  initPolicyEngine(config);
+
+  if (auditStoreKind === "postgres") {
+    try {
+      evidenceStore = await EvidenceStore.connect(config.DATABASE_URL, config.AUDIT_BOOTSTRAP_SCHEMA);
+    } catch (error) {
+      logger.warn("Evidence store unavailable", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  jobQueue = await createOperationalQueue(config.REDIS_URL);
+  if (jobQueue) {
+    logger.info("Operational job queue connected", { redisUrl: config.REDIS_URL.replace(/:[^:@/]+@/, ":***@") });
+  } else {
+    logger.warn("Operational job queue unavailable — investigations run synchronously");
+  }
 
   const fireblocksClient = createFireblocksClient(
     buildFireblocksClientOptions(config),
@@ -372,6 +401,41 @@ async function handleRequest(
       outcome: "success",
       metadata: { path },
     });
+
+    if (!isSandboxAdminWritePath(req.method ?? "GET", path)) {
+      await evaluateRequestPolicy({
+        actor: ctx.actor,
+        method: req.method ?? "GET",
+        path,
+        correlationId,
+        auditLogger,
+      });
+    }
+
+    if (
+      await tryHandleEnterpriseRoute({
+        req,
+        res,
+        path,
+        method: req.method ?? "GET",
+        correlationId,
+        actor: ctx.actor,
+        url,
+        readBody: () => readBody(req),
+        requirePermission,
+        json,
+        wrapResponse,
+        fbCtx: (cid, actorId) => ({ correlationId: cid, actorId }),
+        dataService,
+        evidencePipeline,
+        delayedPaymentsWorkflow,
+        auditLogger,
+        evidenceStore,
+        jobQueue,
+      })
+    ) {
+      return;
+    }
 
     if (path === "/v1/fireblocks/connection-status" && req.method === "GET") {
       await requirePermission(ctx.actor, "operations:read", correlationId);
@@ -636,6 +700,29 @@ async function handleRequest(
         });
       }
 
+      if (evidenceStore) {
+        await evidenceStore.persistBundle({
+          correlationId,
+          sourceType: "REAL_FIREBLOCKS",
+          records: items.map((item) => ({
+            evidenceId: item.id,
+            label: item.label,
+            sourceType: item.provenance.source_type,
+            available: item.available,
+            metadata: {
+              provenance: item.provenance,
+            },
+          })),
+        });
+        if (jobQueue) {
+          await jobQueue.enqueue({
+            type: "persist_evidence_bundle",
+            correlationId,
+            payload: { item_count: items.length },
+          });
+        }
+      }
+
       json(res, 200, {
         mode: dataService.getMode(),
         items,
@@ -773,6 +860,16 @@ function errorBody(code: string, error: string, correlationId: string) {
 }
 
 function handleError(res: ServerResponse, error: unknown, correlationId: string): void {
+  if (error instanceof PolicyDeniedError) {
+    json(res, 403, {
+      error: error.message,
+      code: error.code,
+      audit_reference: error.auditReference,
+      correlationId,
+    });
+    return;
+  }
+
   if (error instanceof AuthError) {
     const status = error.code === "FORBIDDEN" ? 403 : 401;
     json(res, status, errorBody(error.code, error.message, correlationId));

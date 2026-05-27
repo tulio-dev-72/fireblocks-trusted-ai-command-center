@@ -1,10 +1,13 @@
 /**
- * Background worker — processes approval timeouts, webhook events,
- * and audit archival jobs via Redis queue.
+ * Background worker — Redis/BullMQ operational job processor.
  */
 import { loadConfig } from "@taicc/config";
 import { createAuditLogger } from "@taicc/audit";
-import { createLogger, generateCorrelationId } from "@taicc/observability";
+import { createLogger } from "@taicc/observability";
+import {
+  startOperationalWorker,
+  type OperationalJobPayload,
+} from "@taicc/queue";
 
 const config = loadConfig();
 const logger = createLogger("worker", config.LOG_LEVEL);
@@ -21,93 +24,58 @@ async function bootstrapWorker(): Promise<() => Promise<void>> {
   return auditHandle.shutdown;
 }
 
-interface Job {
-  id: string;
-  type: "approval_timeout" | "webhook_process" | "audit_archive";
-  payload: Record<string, unknown>;
-  createdAt: string;
-}
+async function processOperationalJob(job: OperationalJobPayload): Promise<void> {
+  const correlationId = job.correlationId;
 
-const jobQueue: Job[] = [];
-
-function enqueue(job: Omit<Job, "id" | "createdAt">): void {
-  jobQueue.push({
-    ...job,
-    id: generateCorrelationId(),
-    createdAt: new Date().toISOString(),
+  await auditLogger.record({
+    correlationId,
+    eventType: "worker_job",
+    action: job.type,
+    outcome: "success",
+    metadata: { payload: job.payload, idempotent: true },
   });
-}
-
-async function processJob(job: Job): Promise<void> {
-  const correlationId = generateCorrelationId();
 
   switch (job.type) {
-    case "approval_timeout":
-      logger.info("Processing approval timeout", {
-        correlationId,
-        operationId: job.payload.operationId,
-      });
-      await auditLogger.record({
-        correlationId,
-        eventType: "approval_decided",
-        outcome: "denied",
-        metadata: {
-          operationId: job.payload.operationId,
-          reason: "Approval expired (deny-on-expiry, SR-5.3)",
-        },
-      });
-      break;
-
-    case "webhook_process":
-      logger.info("Processing Fireblocks webhook", {
+    case "process_fireblocks_webhook":
+      logger.info("Processed Fireblocks webhook job", {
         correlationId,
         eventType: job.payload.eventType,
       });
-      await auditLogger.record({
+      break;
+    case "run_delayed_payments_investigation":
+      logger.info("Recorded delayed payments investigation job", { correlationId });
+      break;
+    case "generate_ai_summary":
+      logger.info("Recorded AI summary job", { correlationId });
+      break;
+    case "prepare_escalation_summary":
+      logger.info("Recorded escalation summary job", { correlationId });
+      break;
+    case "persist_evidence_bundle":
+      logger.info("Persisted evidence bundle job", {
         correlationId,
-        eventType: "fireblocks_api_call",
-        outcome: "success",
-        metadata: { webhook: job.payload },
+        itemCount: job.payload.item_count,
       });
-      break;
-
-    case "audit_archive":
-      logger.info("Archiving audit events", { correlationId });
       break;
   }
 }
-
-async function poll(): Promise<void> {
-  while (jobQueue.length > 0) {
-    const job = jobQueue.shift()!;
-    try {
-      await processJob(job);
-    } catch (error) {
-      logger.error("Job processing failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-}
-
-const POLL_INTERVAL_MS = 5000;
 
 async function main(): Promise<void> {
   const shutdownAudit = await bootstrapWorker();
 
-  setInterval(() => {
-    poll().catch((err) => logger.error("Poll error", { error: String(err) }));
-  }, POLL_INTERVAL_MS);
+  const worker = await startOperationalWorker(config.REDIS_URL, processOperationalJob);
 
-  logger.info("Worker started", {
-    concurrency: config.WORKER_CONCURRENCY,
-    redisUrl: config.REDIS_URL,
-    auditStore: config.AUDIT_STORE,
-  });
+  if (worker) {
+    logger.info("BullMQ worker started", {
+      concurrency: config.WORKER_CONCURRENCY,
+      redisUrl: config.REDIS_URL.replace(/:[^:@/]+@/, ":***@"),
+    });
+  } else {
+    logger.warn("Redis unavailable — worker idle (jobs processed synchronously in API)");
+  }
 
   process.on("SIGINT", () => {
-    shutdownAudit().finally(() => process.exit(0));
+    Promise.all([worker?.close(), shutdownAudit()]).finally(() => process.exit(0));
   });
 }
 
@@ -117,5 +85,3 @@ main().catch((error) => {
   });
   process.exit(1);
 });
-
-export { enqueue };

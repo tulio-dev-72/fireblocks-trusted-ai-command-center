@@ -73,8 +73,8 @@ export function ArchitecturePage() {
       <section className="panel">
         <h3>RBAC (implemented)</h3>
         <p className="arch-note arch-note-inline">
-          Roles are embedded in JWT claims. Permissions are checked per route — not via a separate
-          policy engine.
+          Roles are embedded in JWT claims. Permissions are checked per route. Policy engine
+          evaluation runs on every protected request before business logic.
         </p>
         <table className="table">
           <thead>
@@ -108,9 +108,40 @@ export function ArchitecturePage() {
         </table>
         <p className="arch-note">
           Workflow routes require <code>operations:read</code>. Audit queries require{" "}
-          <code>audit:read</code>. <code>agents:*</code> permissions exist but{" "}
-          <span className="planned-tag">Planned</span> agent registration endpoints are not exposed.
+          <code>audit:read</code>. <code>GET /v1/agents</code> exposes registered investigation
+          agents under read-only execution boundary.
         </p>
+      </section>
+
+      <section className="panel">
+        <h3>Enterprise runtime (implemented)</h3>
+        <ol className="arch-flow">
+          <li>
+            <strong>Browser</strong> → Backend API (Operational Intelligence Command Center)
+          </li>
+          <li>
+            <strong>RBAC / Policy Engine</strong> — role permissions +{" "}
+            <code>@taicc/policy-engine</code> deny-by-default evaluation, audited as{" "}
+            <code>policy_evaluation</code>
+          </li>
+          <li>
+            <strong>Evidence Retrieval</strong> — Fireblocks SDK reads with provenance; persisted to{" "}
+            <code>evidence_bundles</code> / <code>evidence_records</code>
+          </li>
+          <li>
+            <strong>Fireblocks APIs</strong> — sandbox/production read paths; sandbox admin writes
+            isolated from AI
+          </li>
+          <li>
+            <strong>AI Providers</strong> — institutional response structure with evidence citations
+          </li>
+          <li>
+            <strong>Audit Store</strong> — append-only Postgres <code>audit_events</code>
+          </li>
+          <li>
+            <strong>Worker Queue</strong> — BullMQ/Redis for webhook, investigation, and evidence jobs
+          </li>
+        </ol>
       </section>
 
       <section className="panel">
@@ -181,9 +212,39 @@ export function ArchitecturePage() {
               <td>Policy, approval queue, audit logs, counterparties</td>
             </tr>
             <tr>
-              <td className="mono">GET /v1/evidence</td>
+              <td className="mono">GET /v1/evidence, /v1/evidence/:id</td>
+              <td className="mono">audit:read</td>
+              <td>Aggregated and persisted evidence bundles</td>
+            </tr>
+            <tr>
+              <td className="mono">GET /v1/agents</td>
+              <td className="mono">agents:read</td>
+              <td>Registered investigation agents (read-only boundary)</td>
+            </tr>
+            <tr>
+              <td className="mono">POST /v1/agents/investigate</td>
               <td className="mono">operations:read</td>
-              <td>Aggregated evidence bundles for workflows</td>
+              <td>Evidence-backed agent investigation</td>
+            </tr>
+            <tr>
+              <td className="mono">POST /v1/operations/delayed-payments</td>
+              <td className="mono">operations:read</td>
+              <td>Delayed Payments Investigator (alias)</td>
+            </tr>
+            <tr>
+              <td className="mono">POST /v1/operations/escalations/prepare</td>
+              <td className="mono">operations:read</td>
+              <td>Prepare-only escalation summary</td>
+            </tr>
+            <tr>
+              <td className="mono">POST /v1/webhooks/fireblocks</td>
+              <td className="mono">operations:write</td>
+              <td>Webhook ingestion — store + queue, no execution</td>
+            </tr>
+            <tr>
+              <td className="mono">GET /v1/audit/events</td>
+              <td className="mono">audit:read</td>
+              <td>Query audit events (alias)</td>
             </tr>
             <tr>
               <td className="mono">POST /v1/workflows/delayed-payments/investigate</td>
@@ -261,10 +322,11 @@ export function ArchitecturePage() {
             database trigger blocking UPDATE/DELETE
           </li>
           <li>
-            Event types: <code>user_action</code>, <code>rbac_filter</code>,{" "}
-            <code>fireblocks_api_call</code>, <code>evidence_retrieved</code>, <code>ai_prompt</code>
-            , <code>ai_response</code>, <code>workflow_executed</code>,{" "}
-            <code>escalation_prepared</code>
+            Event types: <code>user_action</code>, <code>policy_evaluation</code>,{" "}
+            <code>rbac_filter</code>, <code>fireblocks_api_call</code>,{" "}
+            <code>evidence_retrieved</code>, <code>ai_prompt</code>, <code>ai_response</code>,{" "}
+            <code>workflow_executed</code>, <code>escalation_prepared</code>,{" "}
+            <code>webhook_ingested</code>, <code>worker_job</code>, <code>sandbox_activity</code>
           </li>
           <li>
             Configured via <code>DATABASE_URL</code> and <code>AUDIT_STORE=postgres</code> (default)
@@ -274,22 +336,14 @@ export function ArchitecturePage() {
 
       <section className="panel planned-section">
         <h3>
-          <span className="planned-tag">Planned</span> — not implemented in request path
+          <span className="planned-tag">Planned</span> — intentionally not implemented
         </h3>
         <ul className="arch-list">
-          <li>OIDC / SSO authentication (JWT only today)</li>
-          <li>
-            Policy engine evaluation on each API request (<code>@taicc/policy-engine</code> package
-            exists, not wired)
-          </li>
-          <li>
-            <code>/v1/agents</code>, <code>/v1/operations</code> endpoints (permissions defined,
-            routes not exposed)
-          </li>
-          <li>Redis-backed worker queue (worker process is a stub)</li>
-          <li>Fireblocks webhook ingestion pipeline</li>
+          <li>OIDC / SSO authentication (JWT + viewer/admin tokens today)</li>
           <li>Co-signer / automated signing integration</li>
+          <li>Transaction approval or execution from this platform</li>
           <li>Production Kubernetes deployment hardening</li>
+          <li>Full Snowflake / Cortex analytics layer</li>
         </ul>
       </section>
     </div>

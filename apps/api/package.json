@@ -17,6 +17,8 @@
     "@taicc/data-layer": "workspace:*",
     "@taicc/fireblocks-client": "workspace:*",
     "@taicc/observability": "workspace:*",
+    "@taicc/policy-engine": "workspace:*",
+    "@taicc/queue": "workspace:*",
     "@taicc/shared-types": "workspace:*",
     "@taicc/trusted-ai": "workspace:*"
   },

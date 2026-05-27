@@ -15,10 +15,23 @@ export const AiAskRequestSchema = z.object({
 });
 export type AiAskRequest = z.infer<typeof AiAskRequestSchema>;
 
+export const InstitutionalAnalysisSchema = z.object({
+  summary: z.string(),
+  operational_impact: z.string(),
+  root_cause: z.string(),
+  evidence: z.string(),
+  recommended_action: z.string(),
+  audit_reference: z.string(),
+  confidence: z.enum(["high", "medium", "low"]),
+  missing_evidence: z.array(z.string()).default([]),
+});
+export type InstitutionalAnalysis = z.infer<typeof InstitutionalAnalysisSchema>;
+
 export const AiAskResponseSchema = z.object({
   question: z.string(),
   answer: z.string(),
   summary: z.string(),
+  analysis: InstitutionalAnalysisSchema.optional(),
   citations: z.array(CitationSchema),
   evidence: z.array(EvidenceItemSchema),
   model_provider: z.string(),

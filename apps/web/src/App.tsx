@@ -23,6 +23,7 @@ export function App() {
   const [page, setPage] = useState<Page>("home");
   const [dataMode, setDataMode] = useState<DataModeInfo | null>(null);
   const [auditCorrelation, setAuditCorrelation] = useState<string | undefined>();
+  const [investigationPrompt, setInvestigationPrompt] = useState<string | undefined>();
 
   useEffect(() => {
     fetch(`${API_URL}/v1/data-mode`)
@@ -35,6 +36,11 @@ export function App() {
     setPage(next);
   }
 
+  function startInvestigation(prompt?: string) {
+    setInvestigationPrompt(prompt);
+    setPage("investigator");
+  }
+
   return (
     <Shell page={page} onNavigate={navigate} dataMode={dataMode?.mode}>
       <SecurityBanner />
@@ -44,14 +50,13 @@ export function App() {
 
       {page === "home" && (
         <HomePage
-          onStartInvestigation={() => {
-            setPage("investigator");
-          }}
+          onStartInvestigation={startInvestigation}
           onNavigate={navigate}
         />
       )}
       {page === "investigator" && (
         <DelayedPaymentsInvestigator
+          initialQuestion={investigationPrompt}
           onInvestigationComplete={(correlationId) => {
             setAuditCorrelation(correlationId);
           }}

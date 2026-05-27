@@ -17,9 +17,9 @@ export function Shell({ page, onNavigate, dataMode, children }: ShellProps) {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="brand-mark">TA</span>
+          <span className="brand-mark">OI</span>
           <div>
-            <strong>Trusted AI</strong>
+            <strong>Operational Intelligence</strong>
             <span>Command Center</span>
           </div>
         </div>

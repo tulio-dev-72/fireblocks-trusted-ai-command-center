@@ -195,6 +195,19 @@ export const DEFAULT_POLICY_RULES: PolicyRule[] = [
     updatedAt: new Date().toISOString(),
   },
   {
+    id: "00000000-0000-4000-8000-000000000004",
+    name: "Allow operational investigations",
+    version: 1,
+    enabled: true,
+    priority: 110,
+    conditions: {
+      actions: ["investigate"],
+    },
+    action: "allow",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
     id: "00000000-0000-4000-8000-000000000003",
     name: "Require approval for high-value transfers",
     version: 1,
