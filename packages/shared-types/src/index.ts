@@ -177,3 +177,4 @@ export * from "./fireblocks-auth.js";
 export * from "./sandbox-readiness.js";
 export * from "./sandbox-activity.js";
 export * from "./agents.js";
+export * from "./investigations.js";

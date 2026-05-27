@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { loadConfig, getCorsOrigins, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
 import { AuthService, extractBearerToken, AuthError, type Permission } from "@taicc/auth";
-import { AuditLogger, createAuditLogger, EvidenceStore } from "@taicc/audit";
+import { AuditLogger, createAuditLogger, EvidenceStore, InvestigationStore, InMemoryInvestigationStore, type InvestigationStoreLike } from "@taicc/audit";
 import {
   evaluateRequestPolicy,
   initPolicyEngine,
@@ -34,8 +34,14 @@ import {
   DelayedPaymentsInvestigationRequestSchema,
   EscalationSummaryRequestSchema,
   SandboxActivityRequestSchema,
+  StartInvestigationRequestSchema,
 } from "@taicc/shared-types";
 import { isDisabledExecutionRoute, EXECUTION_DISABLED_MESSAGE } from "./execution-boundary.js";
+import {
+  createInvestigationRunner,
+  formatAuditTimelineEvent,
+  type InvestigationRunner,
+} from "./investigation-runner.js";
 
 const SANDBOX_ADMIN_ACTOR: Actor = {
   id: "00000000-0000-4000-8000-000000000004",
@@ -140,6 +146,8 @@ let evidencePipeline!: ReturnType<typeof createEvidencePipeline>;
 let delayedPaymentsWorkflow!: ReturnType<typeof createDelayedPaymentsWorkflow>;
 let sandboxActivityGenerator!: SandboxActivityGenerator;
 let evidenceStore: EvidenceStore | null = null;
+let investigationStore!: InvestigationStoreLike;
+let investigationRunner!: InvestigationRunner;
 let jobQueue: QueueHandle | null = null;
 let bootstrapped = false;
 let shutdownAudit: (() => Promise<void>) | null = null;
@@ -163,6 +171,12 @@ async function bootstrap(): Promise<() => Promise<void>> {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+    investigationStore = await InvestigationStore.connect(
+      config.DATABASE_URL,
+      config.AUDIT_BOOTSTRAP_SCHEMA,
+    );
+  } else {
+    investigationStore = new InMemoryInvestigationStore();
   }
 
   jobQueue = await createOperationalQueue(config.REDIS_URL);
@@ -190,6 +204,12 @@ async function bootstrap(): Promise<() => Promise<void>> {
     auditLogger,
     config,
   );
+
+  investigationRunner = createInvestigationRunner({
+    store: investigationStore,
+    auditLogger,
+    delayedPaymentsWorkflow,
+  });
 
   try {
     dataService.assertReady();
@@ -556,6 +576,80 @@ async function handleRequest(
         true,
       );
       json(res, 200, investigation);
+      return;
+    }
+
+    if (path === "/v1/investigations/run" && req.method === "POST") {
+      await requirePermission(ctx.actor, "operations:read", correlationId);
+      const body = JSON.parse(await readBody(req));
+      const parsed = StartInvestigationRequestSchema.parse(body);
+
+      if (parsed.workflow !== "delayed_payments_investigator") {
+        json(res, 400, errorBody("UNSUPPORTED_WORKFLOW", "Workflow not supported", correlationId));
+        return;
+      }
+
+      const started = await investigationRunner.startDelayedPayments(
+        parsed.question,
+        parsed.mode,
+        ctx.actor,
+      );
+      json(res, 202, started);
+      return;
+    }
+
+    const investigationMatch = path.match(/^\/v1\/investigations\/([^/]+)(\/timeline)?$/);
+    if (investigationMatch && req.method === "GET") {
+      await requirePermission(ctx.actor, "operations:read", correlationId);
+      const targetId = investigationMatch[1];
+      const isTimeline = Boolean(investigationMatch[2]);
+
+      if (isTimeline) {
+        const events = await auditLogger.query({ correlationId: targetId, limit: 200 });
+        json(res, 200, {
+          correlation_id: targetId,
+          events: events.map((event) => {
+            const formatted = formatAuditTimelineEvent({
+              id: event.id,
+              eventType: event.eventType,
+              action: event.action,
+              outcome: event.outcome,
+              timestamp: event.timestamp,
+              metadata: event.metadata,
+            });
+            return {
+              id: event.id,
+              event_type: event.eventType,
+              action: event.action,
+              outcome: event.outcome,
+              timestamp: event.timestamp,
+              label: formatted.label,
+              detail: formatted.detail,
+              metadata: event.metadata,
+            };
+          }),
+        });
+        return;
+      }
+
+      const record = await investigationStore.get(targetId);
+      if (!record) {
+        json(res, 404, errorBody("NOT_FOUND", "Investigation not found", correlationId));
+        return;
+      }
+
+      json(res, 200, {
+        correlation_id: record.correlation_id,
+        workflow: record.workflow,
+        mode: record.mode,
+        question: record.question,
+        status: record.status,
+        phase: record.phase,
+        started_at: record.started_at,
+        completed_at: record.completed_at,
+        error: record.error,
+        result: record.result,
+      });
       return;
     }
 

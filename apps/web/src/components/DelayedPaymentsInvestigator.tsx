@@ -1,22 +1,18 @@
-import { useState } from "react";
-import type {
-  DelayedPaymentsInvestigationResponse,
-  EscalationSummaryResponse,
-} from "@taicc/shared-types";
+import { useEffect, useState } from "react";
+import type { EscalationSummaryResponse, InvestigationMode } from "@taicc/shared-types";
 import { apiPost } from "../lib/api";
-import { ProvenanceBadge } from "./ProvenanceBadge";
-import { InvestigationDelayChart } from "./InvestigationDelayChart";
-import { WorkflowStepper } from "./WorkflowStepper";
+import { useInvestigationPoll } from "../hooks/useInvestigationPoll";
+import { InvestigationWorkspace } from "./InvestigationWorkspace";
 
 const DEFAULT_QUESTION = "Why are these treasury payments delayed?";
 
-const REASON_COLORS: Record<string, string> = {
-  approval_pending: "reason-approval",
-  policy_blocked: "reason-policy",
-  insufficient_balance: "reason-balance",
-  failed_transfer: "reason-failed",
-  network_delay: "reason-network",
-};
+const INVESTIGATION_MODES: { value: InvestigationMode; label: string; hint: string }[] = [
+  { value: "operations", label: "Operations", hint: "Day-to-day treasury ops focus" },
+  { value: "treasury", label: "Treasury", hint: "Liquidity and settlement lens" },
+  { value: "risk", label: "Risk", hint: "Exposure and control emphasis" },
+  { value: "compliance", label: "Compliance", hint: "Policy and audit trail focus" },
+  { value: "executive", label: "Executive", hint: "Concise impact summary" },
+];
 
 interface Props {
   initialQuestion?: string;
@@ -30,265 +26,122 @@ export function DelayedPaymentsInvestigator({
   onViewAudit,
 }: Props) {
   const [question, setQuestion] = useState(initialQuestion ?? DEFAULT_QUESTION);
-  const [step, setStep] = useState(0);
-  const [result, setResult] = useState<DelayedPaymentsInvestigationResponse | null>(null);
+  const [mode, setMode] = useState<InvestigationMode>("operations");
+  const [started, setStarted] = useState(false);
   const [escalation, setEscalation] = useState<EscalationSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [escalating, setEscalating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const poll = useInvestigationPoll();
+  const [localError, setLocalError] = useState<string | null>(null);
 
   async function investigate() {
-    setLoading(true);
-    setError(null);
     setEscalation(null);
-    try {
-      const data = await apiPost<DelayedPaymentsInvestigationResponse>(
-        "/v1/workflows/delayed-payments/investigate",
-        { question },
-      );
-      setResult(data);
-      setStep(3);
-      onInvestigationComplete?.(data.correlation_id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Investigation failed");
-    } finally {
-      setLoading(false);
-    }
+    setLocalError(null);
+    setStarted(true);
+    await poll.start(question, mode);
   }
 
+  useEffect(() => {
+    if (poll.status === "completed" && poll.correlationId) {
+      onInvestigationComplete?.(poll.correlationId);
+    }
+  }, [poll.status, poll.correlationId, onInvestigationComplete]);
+
   async function prepareEscalation() {
-    if (!result) return;
+    if (!poll.result) return;
     setEscalating(true);
     try {
       const summary = await apiPost<EscalationSummaryResponse>(
         "/v1/workflows/delayed-payments/escalation-summary",
         {
-          correlation_id: result.correlation_id,
-          investigation_summary: result.summary,
+          correlation_id: poll.result.correlation_id,
+          investigation_summary: poll.result.summary,
         },
       );
       setEscalation(summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Escalation failed");
+      setLocalError(err instanceof Error ? err.message : "Escalation failed");
     } finally {
       setEscalating(false);
     }
   }
 
-  const steps = ["Intake", "Analysis", "Evidence", "Recommendation"];
+  function handleNewInvestigation() {
+    poll.reset();
+    setEscalation(null);
+    setStarted(false);
+  }
+
+  if (started) {
+    return (
+      <InvestigationWorkspace
+        question={question}
+        mode={mode}
+        status={poll.status}
+        phase={poll.phase}
+        correlationId={poll.correlationId}
+        timeline={poll.timeline}
+        result={poll.result}
+        error={poll.error ?? localError}
+        running={poll.running}
+        escalation={escalation}
+        escalating={escalating}
+        onPrepareEscalation={prepareEscalation}
+        onViewAudit={onViewAudit}
+        onNewInvestigation={handleNewInvestigation}
+      />
+    );
+  }
 
   return (
     <div className="investigator">
-      <WorkflowStepper steps={steps} current={step} onStepClick={setStep} />
+      <section className="panel investigator-ask">
+        <div className="workflow-tag">Workflow · Delayed Payments Investigator</div>
+        <h2>Investigate delayed treasury payments</h2>
+        <p className="panel-desc">
+          Starts an async investigation against live Fireblocks data. The orchestration log updates
+          in real time as evidence is retrieved, policies are evaluated, and AI analysis completes.
+        </p>
 
-      {step === 0 && (
-        <section className="panel investigator-ask">
-          <div className="workflow-tag">Workflow · Delayed Payments Investigator</div>
-          <h2>Investigate delayed treasury payments</h2>
-          <p className="panel-desc">
-            Retrieves live Fireblocks transactions, approvals, balances, and policy records.
-            Classifies root causes, builds an evidence bundle, and returns a cited operational
-            analysis. Read-only — no transaction execution.
-          </p>
-          <div className="execution-boundary">
-            Execution boundary enforced: AI may investigate and recommend only. All transfers
-            require human approval in the Fireblocks console.
+        <div className="investigation-mode-picker">
+          <span className="mode-picker-label">Investigation mode</span>
+          <div className="mode-picker-options">
+            {INVESTIGATION_MODES.map((option) => (
+              <label key={option.value} className={`mode-option ${mode === option.value ? "selected" : ""}`}>
+                <input
+                  type="radio"
+                  name="investigation-mode"
+                  value={option.value}
+                  checked={mode === option.value}
+                  onChange={() => setMode(option.value)}
+                />
+                <span className="mode-option-label">{option.label}</span>
+                <span className="mode-option-hint">{option.hint}</span>
+              </label>
+            ))}
           </div>
-          <div className="treasury-input">
-            <input
-              type="text"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              className="treasury-question-input"
-            />
-            <button className="btn-primary" onClick={investigate} disabled={loading}>
-              {loading ? "Investigating…" : "Investigate"}
-            </button>
-          </div>
-          {error && <div className="error-banner">{error}</div>}
-        </section>
-      )}
+        </div>
 
-      {result && step >= 1 && (
-        <>
-          <section className="panel">
-            <div className="panel-header">
-              <h2>Root Cause Analysis</h2>
-              <ProvenanceBadge provenance={result.provenance} />
-            </div>
-            <p className="analysis-summary">{result.summary}</p>
-            <p className="analysis-explanation">{result.explanation}</p>
+        <div className="treasury-input">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            className="treasury-question-input"
+            placeholder="What should we investigate?"
+          />
+          <button className="btn-primary" onClick={investigate} disabled={poll.running}>
+            {poll.running ? "Starting…" : "Start Investigation"}
+          </button>
+        </div>
 
-            {result.analysis && (
-              <div className="institutional-analysis">
-                <h3>Operational Intelligence Assessment</h3>
-                <dl className="analysis-dl">
-                  <dt>Operational Impact</dt>
-                  <dd>{result.analysis.operational_impact}</dd>
-                  <dt>Root Cause</dt>
-                  <dd>{result.analysis.root_cause}</dd>
-                  <dt>Evidence</dt>
-                  <dd>{result.analysis.evidence}</dd>
-                  <dt>Recommended Action</dt>
-                  <dd>{result.analysis.recommended_action}</dd>
-                  <dt>Audit Reference</dt>
-                  <dd className="mono">{result.analysis.audit_reference}</dd>
-                  <dt>Confidence</dt>
-                  <dd className={`confidence-${result.analysis.confidence}`}>
-                    {result.analysis.confidence.toUpperCase()}
-                  </dd>
-                </dl>
-                {result.analysis.missing_evidence.length > 0 && (
-                  <p className="missing-evidence">
-                    Missing evidence: {result.analysis.missing_evidence.join("; ")}
-                  </p>
-                )}
-              </div>
-            )}
+        <p className="operational-boundary-footnote">
+          Operational boundary: read-only investigation. No transaction execution from this workspace.
+        </p>
 
-            <div className="delay-groups">
-              {result.delay_groups.map((group) => (
-                <div
-                  key={group.reason}
-                  className={`delay-group-card ${REASON_COLORS[group.reason] ?? ""}`}
-                >
-                  <div className="delay-group-header">
-                    <strong>{group.label}</strong>
-                    <span className="delay-count">{group.count}</span>
-                  </div>
-                  <p>{group.summary}</p>
-                </div>
-              ))}
-              {result.delay_groups.length === 0 && (
-                <p className="empty">No delayed payments detected in sandbox.</p>
-              )}
-            </div>
-
-            <InvestigationDelayChart groups={result.delay_groups} />
-
-            <div className="analysis-stats">
-              <span>{result.delayed_payment_count} delayed</span>
-              <span>{result.pending_approval_count} pending approval</span>
-              <span>Model: {result.model_provider}</span>
-            </div>
-          </section>
-
-          {step >= 2 && (
-            <section className="panel">
-              <h2>Evidence Cards</h2>
-              <div className="evidence-cards-grid">
-                {result.evidence_cards.map((card) => (
-                  <div key={card.id} className="evidence-card">
-                    <div className="evidence-card-top">
-                      <span className={`reason-tag ${REASON_COLORS[card.reason ?? ""] ?? ""}`}>
-                        {card.title}
-                      </span>
-                      <ProvenanceBadge provenance={card.provenance} compact />
-                    </div>
-                    <p className="evidence-card-sub">{card.subtitle}</p>
-                    <dl className="evidence-card-meta">
-                      {card.status && (
-                        <>
-                          <dt>Status</dt>
-                          <dd>{card.status}</dd>
-                        </>
-                      )}
-                      {card.amount && (
-                        <>
-                          <dt>Amount</dt>
-                          <dd>
-                            {card.amount} {card.asset}
-                          </dd>
-                        </>
-                      )}
-                      <dt>Ref</dt>
-                      <dd className="mono">{card.transaction_id?.slice(0, 14)}…</dd>
-                    </dl>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {step >= 3 && (
-            <>
-              <section className="panel ai-answer-panel">
-                <div className="panel-header">
-                  <h2>Operational Analysis</h2>
-                  <div className="ai-meta">
-                    <span className="meta-chip">{result.model_provider}</span>
-                    {result.prompt_logged && <span className="meta-chip">Prompt logged</span>}
-                    {result.rbac_enforced && <span className="meta-chip">RBAC enforced</span>}
-                  </div>
-                </div>
-                <p className="ai-answer">{result.ai_answer}</p>
-                <p className="mono correlation-id">
-                  Correlation: {result.correlation_id}
-                  {onViewAudit && (
-                    <>
-                      {" · "}
-                      <button type="button" className="link-button" onClick={onViewAudit}>
-                        View audit trail
-                      </button>
-                    </>
-                  )}
-                </p>
-                {result.citations.length > 0 && (
-                  <div className="citations">
-                    <h3>Citations</h3>
-                    <ul>
-                      {result.citations.map((c) => (
-                        <li key={c.id}>
-                          <code>[{c.evidence_id}]</code> {c.label}: {c.excerpt}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-
-              <section className="panel">
-                <h2>Recommended Next Actions</h2>
-                <ul className="recommendation-list">
-                  {result.recommendations.map((rec, i) => (
-                    <li key={i} className={`rec rec-${rec.priority}`}>
-                      <strong>[{rec.priority}]</strong> {rec.action}
-                      <p className="rec-rationale">{rec.rationale}</p>
-                    </li>
-                  ))}
-                </ul>
-                <div className="escalation-actions">
-                  <button
-                    className="btn-primary"
-                    onClick={prepareEscalation}
-                    disabled={escalating}
-                  >
-                    {escalating ? "Preparing…" : "Prepare Escalation Summary"}
-                  </button>
-                  <span className="escalation-note">
-                    Draft only — requires human approval before any outbound action
-                  </span>
-                </div>
-              </section>
-
-              {escalation && (
-                <section className="panel escalation-panel">
-                  <h2>{escalation.title}</h2>
-                  <p>{escalation.summary}</p>
-                  <ul className="escalation-list">
-                    {escalation.recommended_actions.map((a, i) => (
-                      <li key={i}>{a}</li>
-                    ))}
-                  </ul>
-                  <p className="mono correlation-id">
-                    Correlation: {escalation.correlation_id}
-                  </p>
-                </section>
-              )}
-            </>
-          )}
-        </>
-      )}
+        {poll.error && <div className="error-banner">{poll.error}</div>}
+        {localError && <div className="error-banner">{localError}</div>}
+      </section>
     </div>
   );
 }

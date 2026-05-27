@@ -55,6 +55,20 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
+/** POST that accepts 202 Accepted (async investigation start). */
+export async function apiPostAccepted<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: buildAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (res.status !== 202 && !res.ok) {
+    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return data as T;
+}
+
 export async function apiGetSandboxAdmin<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { headers: buildSandboxAdminAuthHeaders() });
   const data = await res.json();
