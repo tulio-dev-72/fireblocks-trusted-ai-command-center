@@ -50,7 +50,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "agents:read",
   ],
   approver: ["operations:read", "approvals:read", "approvals:write", "audit:read"],
-  viewer: ["operations:read", "audit:read", "agents:read"],
+  viewer: ["operations:read", "approvals:read", "audit:read", "agents:read"],
   agent: ["operations:read", "operations:write"],
 };
 
