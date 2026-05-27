@@ -48,3 +48,4 @@ infra/terraform/.terraform/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+.vercel
