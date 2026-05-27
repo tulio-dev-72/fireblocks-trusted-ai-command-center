@@ -1,0 +1,27 @@
+{
+  "name": "@taicc/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node --watch -r ../../scripts/load-env.cjs dist/index.js",
+    "start": "node -r ../../scripts/load-env.cjs dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@taicc/audit": "workspace:*",
+    "@taicc/auth": "workspace:*",
+    "@taicc/config": "workspace:*",
+    "@taicc/data-layer": "workspace:*",
+    "@taicc/fireblocks-client": "workspace:*",
+    "@taicc/observability": "workspace:*",
+    "@taicc/shared-types": "workspace:*",
+    "@taicc/trusted-ai": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

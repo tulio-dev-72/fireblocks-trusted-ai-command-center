@@ -1,0 +1,24 @@
+{
+  "name": "fireblocks-trusted-ai-command-center",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enterprise trusted AI operational platform integrated with Fireblocks infrastructure",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run build && turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules .turbo"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.2"
+  }
+}

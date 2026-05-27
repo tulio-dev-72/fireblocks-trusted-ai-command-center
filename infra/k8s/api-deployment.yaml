@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taicc-api
+  labels:
+    app: taicc-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: taicc-api
+  template:
+    metadata:
+      labels:
+        app: taicc-api
+    spec:
+      containers:
+        - name: api
+          image: taicc/api:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: taicc-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taicc-api
+spec:
+  selector:
+    app: taicc-api
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP
