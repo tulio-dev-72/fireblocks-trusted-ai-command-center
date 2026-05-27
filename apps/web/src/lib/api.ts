@@ -9,8 +9,24 @@ function resolveAuthToken(): string | null {
   return null;
 }
 
+function resolveSandboxAdminToken(): string | null {
+  const admin = import.meta.env.VITE_SANDBOX_ADMIN_TOKEN?.trim();
+  if (admin) return admin;
+  if (import.meta.env.DEV) return "dev-token";
+  return resolveAuthToken();
+}
+
 export function buildAuthHeaders(): AuthHeaders {
   const token = resolveAuthToken();
+  const headers: AuthHeaders = {
+    "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+  return headers;
+}
+
+export function buildSandboxAdminAuthHeaders(): AuthHeaders {
+  const token = resolveSandboxAdminToken();
   const headers: AuthHeaders = {
     "Content-Type": "application/json",
     Authorization: token ? `Bearer ${token}` : "",
@@ -32,6 +48,24 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: buildAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  return data as T;
+}
+
+export async function apiGetSandboxAdmin<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { headers: buildSandboxAdminAuthHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  return data as T;
+}
+
+export async function apiPostSandboxAdmin<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: buildSandboxAdminAuthHeaders(),
     body: JSON.stringify(body),
   });
   const data = await res.json();

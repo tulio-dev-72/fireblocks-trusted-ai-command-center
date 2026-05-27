@@ -4,7 +4,7 @@ import type {
   SandboxActivityResult,
 } from "@taicc/shared-types";
 import { ProvenanceBadge } from "./ProvenanceBadge";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGetSandboxAdmin, apiPostSandboxAdmin } from "../lib/api";
 
 export function SandboxActivityGeneratorPanel() {
   const [capabilities, setCapabilities] = useState<SandboxActivityCapabilities | null>(null);
@@ -23,7 +23,7 @@ export function SandboxActivityGeneratorPanel() {
   const [amount, setAmount] = useState("0.001");
 
   useEffect(() => {
-    apiGet<SandboxActivityCapabilities>("/v1/sandbox/activity/capabilities")
+    apiGetSandboxAdmin<SandboxActivityCapabilities>("/v1/sandbox/activity/capabilities")
       .then(setCapabilities)
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load capabilities"),
@@ -58,7 +58,7 @@ export function SandboxActivityGeneratorPanel() {
           : undefined,
       };
 
-      const data = await apiPost<SandboxActivityResult>(
+      const data = await apiPostSandboxAdmin<SandboxActivityResult>(
         "/v1/sandbox/activity/generate",
         payload,
       );
@@ -90,7 +90,7 @@ export function SandboxActivityGeneratorPanel() {
       {!capabilities?.can_generate && (
         <div className="error-banner">
           {capabilities?.reason ??
-            "Admin credentials required. Use SANDBOX_ADMIN_TOKEN or an admin JWT. The viewer token cannot generate activity."}
+            "Admin credentials required. Set VITE_SANDBOX_ADMIN_TOKEN on Vercel (same value as Render SANDBOX_ADMIN_TOKEN)."}
         </div>
       )}
 
