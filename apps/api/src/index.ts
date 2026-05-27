@@ -690,6 +690,10 @@ function authenticate(req: IncomingMessage): Actor {
     return PLATFORM_VIEWER_ACTOR;
   }
 
+  if (config.SANDBOX_ADMIN_TOKEN?.trim() && token === config.SANDBOX_ADMIN_TOKEN.trim()) {
+    return SANDBOX_ADMIN_ACTOR;
+  }
+
   return authService.verifyToken(token);
 }
 
