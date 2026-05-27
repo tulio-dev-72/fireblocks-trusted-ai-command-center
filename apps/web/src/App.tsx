@@ -7,6 +7,7 @@ import { EvidencePanel } from "./components/EvidencePanel";
 import { TrustCenterPage } from "./components/TrustCenterPage";
 import { AuditLogPage } from "./components/AuditLogPage";
 import { ArchitecturePage } from "./components/ArchitecturePage";
+import { FireblocksAuthDiagnosticsPage } from "./components/FireblocksAuthDiagnosticsPage";
 import { DataModeBanner } from "./components/ProvenanceBadge";
 import { SecurityBanner } from "./components/SecurityBanner";
 import { API_URL } from "./lib/api";
@@ -57,6 +58,7 @@ export function App() {
         />
       )}
       {page === "connection" && <ConnectionStatusPage />}
+      {page === "fb-auth" && <FireblocksAuthDiagnosticsPage />}
       {page === "evidence" && <EvidencePanel />}
       {page === "trust" && <TrustCenterPage />}
       {page === "audit" && <AuditLogPage correlationFilter={auditCorrelation} />}

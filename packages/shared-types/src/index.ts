@@ -170,3 +170,4 @@ export * from "./trusted-ai.js";
 export * from "./workflows.js";
 export * from "./system-status.js";
 export * from "./system-actors.js";
+export * from "./fireblocks-auth.js";

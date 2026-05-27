@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { normalizePrivateKeyPem } from "./private-key-diagnostics.js";
 
 export interface FireblocksSecretKeySource {
   secretKeyPath: string;
@@ -10,7 +11,7 @@ export interface FireblocksSecretKeySource {
 export function resolveFireblocksPrivateKey(source: FireblocksSecretKeySource): string {
   const inline = source.secretKeyInline?.trim();
   if (inline) {
-    return inline.replace(/\\n/g, "\n").trim();
+    return normalizePrivateKeyPem(inline);
   }
 
   if (!source.secretKeyPath?.trim()) {
@@ -20,7 +21,7 @@ export function resolveFireblocksPrivateKey(source: FireblocksSecretKeySource): 
   }
 
   try {
-    return readFileSync(source.secretKeyPath, "utf-8").trim();
+    return normalizePrivateKeyPem(readFileSync(source.secretKeyPath, "utf-8"));
   } catch {
     throw new Error(`Fireblocks private key file not found at: ${source.secretKeyPath}`);
   }

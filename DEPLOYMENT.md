@@ -70,6 +70,7 @@ On first API deploy with `AUDIT_BOOTSTRAP_SCHEMA=true`, the append-only `audit_e
 |----------|-------|
 | `DATABASE_URL` | Neon pooled URL |
 | `JWT_SECRET` | Random string ≥ 32 characters |
+| `API_VIEWER_TOKEN` | Random string ≥ 32 characters — same value as `VITE_API_TOKEN` on Vercel |
 | `FIREBLOCKS_API_KEY` | Fireblocks sandbox API key |
 | `FIREBLOCKS_PRIVATE_KEY` | Full PEM (`\n` for newlines in dashboard) |
 | `PUBLIC_FRONTEND_URL` | `https://your-app.vercel.app` (no trailing slash) |
@@ -136,7 +137,7 @@ Render and the Docker `HEALTHCHECK` both use `/health/ready`.
 | Variable | Value |
 |----------|-------|
 | `VITE_API_URL` | Render API URL (e.g. `https://taicc-api.onrender.com`) |
-| `VITE_API_TOKEN` | Optional Bearer JWT for API calls |
+| `VITE_API_TOKEN` | Same value as Render `API_VIEWER_TOKEN` (read-only dashboard auth) |
 
 5. Deploy. Copy the Vercel URL (e.g. `https://taicc-web.vercel.app`).
 
@@ -174,7 +175,7 @@ Open the Vercel URL — confirm the security banner and live sandbox data.
 | `NODE_ENV` | `development` | `production` |
 | Fireblocks key | `FIREBLOCKS_SECRET_KEY_PATH=./fireblocks_secret.key` OK | `FIREBLOCKS_PRIVATE_KEY` env only |
 | CORS | `API_CORS_ORIGINS=http://localhost:5173` | `PUBLIC_FRONTEND_URL` = Vercel URL |
-| Auth | `dev-token` accepted | JWT or `VITE_API_TOKEN` only |
+| Auth | `dev-token` accepted | `API_VIEWER_TOKEN` or platform JWT |
 | Audit | Postgres (Docker) or `AUDIT_STORE=memory` (tests) | `postgres` only |
 | Demo mode | optional for UI-only dev | **forbidden** |
 
@@ -197,7 +198,8 @@ pnpm dev         # API :3001, web :5173
 | CORS errors in browser | `PUBLIC_FRONTEND_URL` must exactly match Vercel origin (scheme + host, no path) |
 | Fireblocks signature error | `FIREBLOCKS_PRIVATE_KEY` must pair with `FIREBLOCKS_API_KEY`; use `\n` escapes |
 | Postgres SSL error | Use Neon URL with `sslmode=require` |
-| 401 from web | Set `VITE_API_TOKEN` or issue JWT; `dev-token` rejected in production |
+| 401 / "Malformed JWT" from web | Set `VITE_API_TOKEN` = Render `API_VIEWER_TOKEN`. This is app auth, not Fireblocks JWT. |
+| Fireblocks JWT debug | `pnpm fireblocks:test-auth` or UI **FB Auth Diagnostics** / `GET /health/fireblocks/auth-diagnostics` |
 | Port in use locally | Kill stale `node` on :3001 / :5173, restart `pnpm dev` |
 
 ---

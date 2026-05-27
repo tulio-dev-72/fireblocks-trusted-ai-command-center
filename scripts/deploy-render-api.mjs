@@ -90,7 +90,17 @@ if (!redisUrl?.startsWith("rediss://") && !process.env.UPSTASH_REDIS_URL) {
 let jwtSecret = process.env.JWT_SECRET?.trim();
 if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes("change-me")) {
   jwtSecret = randomBytes(32).toString("hex");
-  ok(`Generated JWT_SECRET (${jwtSecret.length} chars) — save this in Render env`);
+  ok(`Generated JWT_SECRET (${jwtSecret.length} chars) — persist in .env.local and Render`);
+} else {
+  ok(`Using JWT_SECRET from env (${jwtSecret.length} chars)`);
+}
+
+let apiViewerToken = process.env.API_VIEWER_TOKEN?.trim();
+if (!apiViewerToken || apiViewerToken.length < 32) {
+  apiViewerToken = randomBytes(32).toString("hex");
+  ok(`Generated API_VIEWER_TOKEN — set VITE_API_TOKEN on Vercel to this value`);
+} else {
+  ok(`Using API_VIEWER_TOKEN from env (${apiViewerToken.length} chars)`);
 }
 
 let fireblocksPrivateKey = process.env.FIREBLOCKS_PRIVATE_KEY?.trim();
@@ -122,6 +132,7 @@ const envVars = [
   { key: "AUDIT_BOOTSTRAP_SCHEMA", value: "true" },
   { key: "DATABASE_URL", value: databaseUrl },
   { key: "JWT_SECRET", value: jwtSecret },
+  { key: "API_VIEWER_TOKEN", value: apiViewerToken },
   { key: "FIREBLOCKS_API_KEY", value: fireblocksApiKey },
   { key: "FIREBLOCKS_PRIVATE_KEY", value: fireblocksPrivateKey },
   {
@@ -236,6 +247,10 @@ async function main() {
   console.log(`API URL: ${url}`);
   console.log(`CORS frontend: ${PUBLIC_FRONTEND_URL}`);
   console.log(`Health: ${url}/health/ready`);
+  console.log(`Fireblocks auth diagnostics: ${url}/health/fireblocks/auth-diagnostics`);
+  console.log("\nVercel web env (required for dashboard data):");
+  console.log(`  VITE_API_URL=${url}`);
+  console.log(`  VITE_API_TOKEN=${apiViewerToken}`);
   console.log("\nWait ~3–5 min for first Docker build, then:");
   console.log(`  curl ${url}/health`);
 }

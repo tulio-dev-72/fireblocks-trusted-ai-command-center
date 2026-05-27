@@ -172,6 +172,32 @@ body {
   font-size: 0.875rem;
 }
 
+.success-banner {
+  background: #14532d;
+  color: #86efac;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.remediation {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-left: 3px solid var(--warn);
+}
+
 .nav {
   display: flex;
   gap: 0.5rem;

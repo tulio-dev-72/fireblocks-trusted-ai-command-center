@@ -5,6 +5,7 @@ export type Page =
   | "trust"
   | "audit"
   | "connection"
+  | "fb-auth"
   | "architecture";
 
 export const NAV_ITEMS: Array<{ id: Page; label: string; section: string }> = [
@@ -15,4 +16,5 @@ export const NAV_ITEMS: Array<{ id: Page; label: string; section: string }> = [
   { id: "trust", label: "Trust Center", section: "Infrastructure" },
   { id: "architecture", label: "Architecture", section: "Infrastructure" },
   { id: "connection", label: "Fireblocks Link", section: "Infrastructure" },
+  { id: "fb-auth", label: "FB Auth Diagnostics", section: "Infrastructure" },
 ];

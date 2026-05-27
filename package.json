@@ -14,6 +14,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "verify": "node scripts/verify-connectivity.mjs",
+    "fireblocks:test-auth": "node scripts/fireblocks-test-auth.mjs",
+    "deploy:render": "node scripts/deploy-render-api.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {

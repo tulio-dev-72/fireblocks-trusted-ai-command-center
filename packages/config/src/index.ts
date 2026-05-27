@@ -26,6 +26,9 @@ const envSchema = z.object({
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
 
+  /** Shared read-only bearer for public dashboard (VITE_API_TOKEN) — not a Fireblocks JWT */
+  API_VIEWER_TOKEN: z.string().min(32).optional(),
+
   JWT_SECRET: z.string().min(16),
   JWT_ISSUER: z.string().default("fireblocks-trusted-ai-command-center"),
   JWT_AUDIENCE: z.string().default("command-center"),
@@ -222,6 +225,13 @@ export function validateProductionConfig(config: EnvConfig): void {
 
   if (!config.REDIS_URL?.startsWith("redis")) {
     throw new Error("Production requires REDIS_URL (Upstash redis:// or rediss:// URL).");
+  }
+
+  if (!config.API_VIEWER_TOKEN?.trim()) {
+    throw new Error(
+      "Production requires API_VIEWER_TOKEN (≥32 chars) for read-only web UI auth. " +
+        "Set the same value as VITE_API_TOKEN on Vercel.",
+    );
   }
 
   if (!config.REAL_FIREBLOCKS) {

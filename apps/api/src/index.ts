@@ -2,7 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { loadConfig, getCorsOrigins, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
 import { AuthService, extractBearerToken, AuthError, type Permission } from "@taicc/auth";
 import { AuditLogger, createAuditLogger } from "@taicc/audit";
-import { createFireblocksClient } from "@taicc/fireblocks-client";
+import {
+  createFireblocksClient,
+  runFireblocksAuthDiagnostics,
+} from "@taicc/fireblocks-client";
 import { createDataService } from "@taicc/data-layer";
 import {
   createEvidencePipeline,
@@ -20,6 +23,85 @@ import {
   EscalationSummaryRequestSchema,
 } from "@taicc/shared-types";
 import { isDisabledExecutionRoute, EXECUTION_DISABLED_MESSAGE } from "./execution-boundary.js";
+
+const PLATFORM_VIEWER_ACTOR: Actor = {
+  id: "00000000-0000-4000-8000-000000000003",
+  type: "human",
+  name: "Platform Viewer",
+  roles: ["viewer"],
+};
+
+async function buildFireblocksAuthDiagnosticsResponse(
+  appBearerHint?: string | null,
+) {
+  const diagnostics = await runFireblocksAuthDiagnostics(
+    buildFireblocksClientOptions(config),
+    logger,
+  );
+
+  if (appBearerHint !== undefined) {
+    diagnostics.app_api_auth = classifyAppBearer(appBearerHint);
+  }
+
+  return diagnostics;
+}
+
+function classifyAppBearer(token: string | null): NonNullable<
+  import("@taicc/shared-types").FireblocksAuthDiagnostics["app_api_auth"]
+> {
+  if (!token?.trim()) {
+    return {
+      bearer_configured: false,
+      bearer_format: "missing",
+      note:
+        "No Bearer token sent. Set VITE_API_TOKEN to API_VIEWER_TOKEN (production) or use dev-token locally.",
+    };
+  }
+
+  const trimmed = token.trim();
+
+  if (config.NODE_ENV !== "production" && trimmed === "dev-token") {
+    return {
+      bearer_configured: true,
+      bearer_format: "dev",
+      note: "Development dev-token accepted",
+    };
+  }
+
+  if (config.API_VIEWER_TOKEN?.trim() && trimmed === config.API_VIEWER_TOKEN.trim()) {
+    return {
+      bearer_configured: true,
+      bearer_format: "viewer_token",
+      note: "API_VIEWER_TOKEN matched — read-only platform access",
+    };
+  }
+
+  const parts = trimmed.split(".");
+  if (parts.length !== 3) {
+    return {
+      bearer_configured: true,
+      bearer_format: "invalid",
+      note:
+        "Bearer token is not a valid platform JWT (expected 3 segments). " +
+        "This is app API auth, not Fireblocks JWT. Use API_VIEWER_TOKEN or mint a JWT.",
+    };
+  }
+
+  try {
+    authService.verifyToken(trimmed);
+    return {
+      bearer_configured: true,
+      bearer_format: "jwt",
+      note: "Valid platform JWT",
+    };
+  } catch (error) {
+    return {
+      bearer_configured: true,
+      bearer_format: "invalid",
+      note: error instanceof AuthError ? error.message : "Invalid platform JWT",
+    };
+  }
+}
 
 const config = loadConfig();
 const logger = createLogger("api", config.LOG_LEVEL);
@@ -157,6 +239,20 @@ async function handleRequest(
       return;
     }
 
+    if (path === "/health/fireblocks/auth-diagnostics" && req.method === "GET") {
+      const appBearer = extractBearerToken(req.headers.authorization);
+      const diagnostics = await buildFireblocksAuthDiagnosticsResponse(appBearer);
+      const statusCode = diagnostics.auth_test.ok ? 200 : 503;
+      json(res, statusCode, diagnostics);
+      return;
+    }
+
+    if (path === "/v1/app-auth/status" && req.method === "GET") {
+      const appBearer = extractBearerToken(req.headers.authorization);
+      json(res, 200, classifyAppBearer(appBearer));
+      return;
+    }
+
     if (path === "/v1/fireblocks/connection" && req.method === "GET") {
       const health = await dataService
         .getConnectionVerification()
@@ -262,6 +358,24 @@ async function handleRequest(
         },
       });
       json(res, status.connected ? 200 : 503, { status });
+      return;
+    }
+
+    if (path === "/v1/fireblocks/auth-diagnostics" && req.method === "GET") {
+      await requirePermission(ctx.actor, "operations:read", correlationId);
+      const appBearer = extractBearerToken(req.headers.authorization);
+      const diagnostics = await buildFireblocksAuthDiagnosticsResponse(appBearer);
+      await auditLogger.record({
+        correlationId,
+        eventType: "connection_verification",
+        actorId: ctx.actor.id,
+        outcome: diagnostics.auth_test.ok ? "success" : "failure",
+        metadata: {
+          sandbox_connectivity: diagnostics.sandbox_connectivity,
+          jwt_ok: diagnostics.jwt_generation.ok,
+        },
+      });
+      json(res, diagnostics.auth_test.ok ? 200 : 503, diagnostics);
       return;
     }
 
@@ -471,8 +585,9 @@ function wrapResponse<T>(record: ProvenanceRecord<T>) {
 }
 
 function authenticate(req: IncomingMessage): Actor {
-  const token = extractBearerToken(req.headers.authorization);
-  if (!token) throw new AuthError("UNAUTHORIZED", "Missing bearer token");
+  const raw = extractBearerToken(req.headers.authorization);
+  if (!raw?.trim()) throw new AuthError("UNAUTHORIZED", "Missing bearer token");
+  const token = raw.trim();
 
   if (config.NODE_ENV !== "production" && token === "dev-token") {
     return {
@@ -483,8 +598,11 @@ function authenticate(req: IncomingMessage): Actor {
     };
   }
 
-  const actor = authService.verifyToken(token);
-  return actor;
+  if (config.API_VIEWER_TOKEN?.trim() && token === config.API_VIEWER_TOKEN.trim()) {
+    return PLATFORM_VIEWER_ACTOR;
+  }
+
+  return authService.verifyToken(token);
 }
 
 function setCorsHeaders(req: IncomingMessage, res: ServerResponse): void {

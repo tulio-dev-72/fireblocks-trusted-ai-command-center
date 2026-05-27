@@ -533,5 +533,27 @@ export {
   isFireblocksPrivateKeyConfigured,
 } from "./secret-key.js";
 export type { FireblocksSecretKeySource } from "./secret-key.js";
+export {
+  signFireblocksJwt,
+  decodeJwtPreview,
+  resolveJwtUriFromUrl,
+  buildFireblocksRequestUrl,
+  validateAuthorizationHeader,
+  FIREBLOCKS_JWT_TTL_SECONDS,
+  EMPTY_BODY_HASH,
+} from "./jwt-auth.js";
+export {
+  diagnosePrivateKey,
+  normalizePrivateKeyPem,
+  maskApiKey,
+  PEM_REGENERATION_GUIDE,
+} from "./private-key-diagnostics.js";
+export { runFireblocksAuthDiagnostics } from "./auth-diagnostics.js";
+export type { FireblocksAuthDiagnosticsConfig } from "./auth-diagnostics.js";
+export {
+  FireblocksAuthLogCollector,
+  logFireblocksAuthPhase,
+} from "./auth-logging.js";
+export type { AuthLogger, FireblocksAuthLogEntry } from "./auth-logging.js";
 
 export type { TransactionRequest };
