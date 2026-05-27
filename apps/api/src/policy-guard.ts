@@ -41,6 +41,7 @@ export function resolvePolicyAction(method: string, path: string): string {
 
   if (
     path.includes("/investigate") ||
+    path.includes("/investigations") ||
     path.includes("/ai/ask") ||
     path.includes("/agents/investigate") ||
     path.includes("/operations/") ||
@@ -65,6 +66,7 @@ export function resolveResourceType(path: string): string {
   if (path.includes("/transactions") || path.includes("/operations")) return "transaction";
   if (path.includes("/vault") || path.includes("/balances")) return "vault";
   if (path.includes("/agents")) return "agent";
+  if (path.includes("/investigations")) return "investigation";
   if (path.includes("/webhooks")) return "webhook";
   if (path.includes("/evidence")) return "evidence";
   if (path.includes("/audit")) return "audit";
