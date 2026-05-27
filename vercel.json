@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
   "installCommand": "corepack enable pnpm && pnpm install --frozen-lockfile --filter @taicc/web...",
   "buildCommand": "NODE_OPTIONS=--max-old-space-size=3072 pnpm run build:web",
   "outputDirectory": "apps/web/dist",
