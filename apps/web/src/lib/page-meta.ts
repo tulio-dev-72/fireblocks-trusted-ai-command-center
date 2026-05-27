@@ -11,4 +11,5 @@ export const PAGE_SUBTITLES: Record<Page, string> = {
   "sandbox-readiness":
     "Live sandbox readiness metrics and human-only sandbox activity generation",
   "fb-auth": "RS256 JWT signing audit, path-sensitive request preview, and live sandbox auth test",
+  usage: "Vercel Web Analytics, Speed Insights, and privacy-safe product event visibility",
 };

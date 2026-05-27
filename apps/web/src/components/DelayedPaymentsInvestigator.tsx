@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EscalationSummaryResponse, InvestigationMode } from "@taicc/shared-types";
 import { apiPost } from "../lib/api";
+import { trackProductEvent } from "../lib/analytics";
 import { useInvestigationStream } from "../hooks/useInvestigationStream";
 import { InvestigationWorkspace } from "./InvestigationWorkspace";
 
@@ -33,19 +34,33 @@ export function DelayedPaymentsInvestigator({
 
   const stream = useInvestigationStream();
   const [localError, setLocalError] = useState<string | null>(null);
+  const completedTracked = useRef(false);
 
   async function investigate() {
     setEscalation(null);
     setLocalError(null);
     setStarted(true);
+    completedTracked.current = false;
+    trackProductEvent("ai_investigation_started", {
+      page: "investigator",
+      investigation_mode: mode,
+      workflow_type: "delayed_payments",
+    });
     await stream.start(question, mode);
   }
 
   useEffect(() => {
-    if (stream.status === "completed" && stream.correlationId) {
+    if (stream.status === "completed" && stream.correlationId && !completedTracked.current) {
+      completedTracked.current = true;
+      trackProductEvent("ai_investigation_completed", {
+        page: "investigator",
+        investigation_mode: mode,
+        workflow_type: "delayed_payments",
+        status: "completed",
+      });
       onInvestigationComplete?.(stream.correlationId);
     }
-  }, [stream.status, stream.correlationId, onInvestigationComplete]);
+  }, [stream.status, stream.correlationId, mode, onInvestigationComplete]);
 
   async function prepareEscalation() {
     if (!stream.result) return;

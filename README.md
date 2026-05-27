@@ -75,6 +75,57 @@ See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for Vercel (web), Render/Railway (API),
 
 **MCP (local):** read-only Fireblocks tools for Cursor — see [docs/MCP.md](./docs/MCP.md). Not deployed to the cloud.
 
+## Production analytics (Vercel)
+
+The web app (`apps/web`) ships with Vercel Web Analytics, Speed Insights, and privacy-safe custom product events.
+
+### Required packages
+
+Installed in `@taicc/web`:
+
+- `@vercel/analytics` — page views and custom events
+- `@vercel/speed-insights` — Core Web Vitals (LCP, FID, CLS, etc.)
+
+### Enable in Vercel dashboard
+
+1. Open the Vercel project → **Analytics** → enable **Web Analytics**.
+2. Open **Speed Insights** → enable for the production deployment.
+3. Redeploy the web app after enabling (or use the next production deploy).
+
+Traffic, page visits, and Web Vitals appear in the Vercel project dashboard once both features are enabled and the app is deployed.
+
+### Where components are mounted
+
+`Analytics` and `SpeedInsights` are mounted client-side in the SPA root:
+
+- `apps/web/src/main.tsx` wraps `<App />` with `<AnalyticsProvider />`
+- `apps/web/src/components/AnalyticsProvider.tsx` renders both Vercel components
+
+### Custom product events
+
+Event tracking lives in `apps/web/src/lib/analytics.ts` via `trackProductEvent()`.
+
+Tracked events:
+
+| Event | When |
+|-------|------|
+| `homepage_viewed` | Treasury Operations page |
+| `architecture_page_viewed` | Architecture page |
+| `operational_investigation_opened` | Delayed Payments investigator opened |
+| `investigation_prompt_clicked` | Homepage prompt card selected |
+| `ai_investigation_started` | Async investigation started |
+| `ai_investigation_completed` | Investigation finished successfully |
+| `evidence_card_opened` | Evidence card expanded in workspace |
+| `fireblocks_connection_checked` | Fireblocks Link connection verified |
+| `operational_data_readiness_viewed` | Operational Data Readiness page |
+| `trust_center_viewed` | Trust Center page |
+
+### Privacy rules
+
+Custom events **never** include API keys, Fireblocks secrets, transaction payloads, wallet private data, or full AI prompts. Only safe metadata is sent (event name, page, timestamp, investigation mode, prompt ID slug, evidence category, connection status).
+
+The in-app **Usage / Analytics** page (`Governance` menu) shows integration status, deployment metadata, tracked event names, and a session-local event log for operator visibility.
+
 ## API Endpoints (data)
 
 | Endpoint | Description |

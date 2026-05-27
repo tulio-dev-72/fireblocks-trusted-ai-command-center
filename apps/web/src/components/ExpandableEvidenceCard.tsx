@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { EvidenceCard } from "@taicc/shared-types";
+import { trackProductEvent } from "../lib/analytics";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 
 interface Props {
@@ -11,7 +12,21 @@ export function ExpandableEvidenceCard({ card }: Props) {
 
   return (
     <div className={`evidence-card evidence-card-expandable ${open ? "expanded" : ""}`}>
-      <button type="button" className="evidence-card-toggle" onClick={() => setOpen(!open)}>
+      <button
+        type="button"
+        className="evidence-card-toggle"
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) {
+            trackProductEvent("evidence_card_opened", {
+              page: "investigator",
+              evidence_type: card.reason ?? "general",
+              workflow_type: "delayed_payments",
+            });
+          }
+        }}
+      >
         <div className="evidence-card-top">
           <span className="reason-tag">{card.title}</span>
           <ProvenanceBadge provenance={card.provenance} compact />

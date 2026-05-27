@@ -9,9 +9,11 @@ import { AuditLogPage } from "./components/AuditLogPage";
 import { ArchitecturePage } from "./components/ArchitecturePage";
 import { SandboxDataReadinessPage } from "./components/SandboxDataReadinessPage";
 import { FireblocksAuthDiagnosticsPage } from "./components/FireblocksAuthDiagnosticsPage";
+import { UsageAnalyticsPage } from "./components/UsageAnalyticsPage";
 import { DataModeBanner } from "./components/ProvenanceBadge";
 import { SecurityBanner } from "./components/SecurityBanner";
 import { API_URL } from "./lib/api";
+import { PAGE_VIEW_EVENTS, promptIdFromText, trackProductEvent } from "./lib/analytics";
 import type { Page } from "./lib/navigation";
 
 interface DataModeInfo {
@@ -32,11 +34,24 @@ export function App() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const event = PAGE_VIEW_EVENTS[page];
+    if (event) {
+      trackProductEvent(event, { page });
+    }
+  }, [page]);
+
   function navigate(next: Page) {
     setPage(next);
   }
 
   function startInvestigation(prompt?: string) {
+    if (prompt) {
+      trackProductEvent("investigation_prompt_clicked", {
+        page: "home",
+        prompt_id: promptIdFromText(prompt),
+      });
+    }
     setInvestigationPrompt(prompt);
     setPage("investigator");
   }
@@ -70,6 +85,7 @@ export function App() {
       {page === "trust" && <TrustCenterPage />}
       {page === "audit" && <AuditLogPage correlationFilter={auditCorrelation} />}
       {page === "architecture" && <ArchitecturePage />}
+      {page === "usage" && <UsageAnalyticsPage />}
     </Shell>
   );
 }

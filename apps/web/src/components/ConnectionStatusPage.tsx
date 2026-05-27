@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FireblocksConnectionStatus, CredentialCheck } from "@taicc/shared-types";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { apiGet, API_URL } from "../lib/api";
+import { trackProductEvent } from "../lib/analytics";
 
 export function ConnectionStatusPage() {
   const [status, setStatus] = useState<FireblocksConnectionStatus | null>(null);
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const trackedInitialCheck = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -18,6 +20,14 @@ export function ConnectionStatusPage() {
         ]);
         setStatus(statusData.status);
         if (healthRes.ok) setHealth(await healthRes.json());
+        if (!trackedInitialCheck.current) {
+          trackedInitialCheck.current = true;
+          trackProductEvent("fireblocks_connection_checked", {
+            page: "connection",
+            connected: statusData.status.connected,
+            status: statusData.status.connected ? "connected" : "disconnected",
+          });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load");
       } finally {
