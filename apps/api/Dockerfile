@@ -5,7 +5,7 @@ WORKDIR /app
 RUN corepack enable pnpm
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY packages packages
 COPY apps/api apps/api
 COPY scripts scripts
