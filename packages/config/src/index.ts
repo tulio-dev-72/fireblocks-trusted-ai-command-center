@@ -90,7 +90,13 @@ let cachedConfig: EnvConfig | null = null;
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): EnvConfig {
   if (cachedConfig) return cachedConfig;
 
-  const result = envSchema.safeParse(env);
+  const normalizedEnv = { ...env };
+  // Render/Railway set PORT — bind API to platform-assigned port
+  if (normalizedEnv.PORT) {
+    normalizedEnv.API_PORT = normalizedEnv.PORT;
+  }
+
+  const result = envSchema.safeParse(normalizedEnv);
   if (!result.success) {
     const formatted = result.error.issues
       .map((i) => `  ${i.path.join(".")}: ${i.message}`)

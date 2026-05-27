@@ -25,11 +25,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api ./apps/api
 COPY --from=build /app/scripts ./scripts
 
-EXPOSE 3001
+EXPOSE 10000
 ENV API_HOST=0.0.0.0
-ENV API_PORT=3001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${API_PORT}/health/ready || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-10000}/health/ready" || exit 1
 
 CMD ["node", "-r", "./scripts/load-env.cjs", "apps/api/dist/index.js"]

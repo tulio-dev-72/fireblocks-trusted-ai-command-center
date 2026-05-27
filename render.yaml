@@ -13,8 +13,6 @@ services:
         value: production
       - key: API_HOST
         value: 0.0.0.0
-      - key: API_PORT
-        value: "3001"
       - key: DEMO_MODE
         value: "false"
       - key: REAL_FIREBLOCKS
