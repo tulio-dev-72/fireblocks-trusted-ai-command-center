@@ -391,6 +391,82 @@ export class FireblocksClient {
     }
   }
 
+  /**
+   * Sandbox-only write — creates a vault account via Fireblocks API.
+   * Caller must enforce assertSandboxBasePath and admin/human authorization.
+   */
+  async createSandboxVaultAccount(
+    name: string,
+    ctx: FireblocksCallContext,
+  ): Promise<{ id: string; name: string }> {
+    const endpoint = "POST /vault/accounts";
+    try {
+      const sdk = this.getSdk();
+      const response = await sdk.vaults.createVaultAccount({
+        createVaultAccountRequest: {
+          name,
+          hiddenOnUI: false,
+          autoFuel: false,
+        },
+        idempotencyKey: randomUUID(),
+      });
+      await this.auditSuccess(ctx, endpoint);
+      const data = response.data as { id?: string | number; name?: string };
+      return {
+        id: String(data.id ?? ""),
+        name: data.name ?? name,
+      };
+    } catch (error) {
+      await this.auditFailure(ctx, endpoint, error);
+      throw this.wrapError(error);
+    }
+  }
+
+  /**
+   * Sandbox-only write — vault-to-vault transfer via Fireblocks API.
+   * Caller must enforce assertSandboxBasePath and admin/human authorization.
+   */
+  async createSandboxVaultTransfer(
+    request: {
+      sourceVaultId: string;
+      destinationVaultId: string;
+      assetId: string;
+      amount: string;
+      note?: string;
+    },
+    ctx: FireblocksCallContext,
+  ): Promise<{ id: string; status: string }> {
+    const endpoint = "POST /transactions";
+    try {
+      const sdk = this.getSdk();
+      const response = await sdk.transactions.createTransaction({
+        transactionRequest: {
+          assetId: request.assetId,
+          amount: request.amount,
+          source: {
+            type: TransferPeerPathType.VaultAccount,
+            id: request.sourceVaultId,
+          },
+          destination: {
+            type: TransferPeerPathType.VaultAccount,
+            id: request.destinationVaultId,
+          },
+          note: request.note,
+        },
+        idempotencyKey: randomUUID(),
+      });
+      await this.auditSuccess(ctx, endpoint);
+      const data = response.data as { id?: string; status?: string };
+      return {
+        id: String(data.id ?? ""),
+        status: String(data.status ?? "SUBMITTED"),
+      };
+    } catch (error) {
+      await this.auditFailure(ctx, endpoint, error);
+      throw this.wrapError(error);
+    }
+  }
+
   /** Prepare a transaction draft locally — does NOT submit to Fireblocks. */
   prepareTransactionDraft(
     request: {
@@ -555,5 +631,14 @@ export {
   logFireblocksAuthPhase,
 } from "./auth-logging.js";
 export type { AuthLogger, FireblocksAuthLogEntry } from "./auth-logging.js";
+
+export {
+  createSandboxActivityGenerator,
+  SandboxActivityGenerator,
+  SandboxActivityError,
+  assertSandboxBasePath,
+  sandboxProvenance,
+} from "./sandbox-activity-generator.js";
+export type { SandboxActivityGeneratorDeps } from "./sandbox-activity-generator.js";
 
 export type { TransactionRequest };

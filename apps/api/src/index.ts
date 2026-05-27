@@ -5,6 +5,9 @@ import { AuditLogger, createAuditLogger } from "@taicc/audit";
 import {
   createFireblocksClient,
   runFireblocksAuthDiagnostics,
+  createSandboxActivityGenerator,
+  assertSandboxBasePath,
+  type SandboxActivityGenerator,
 } from "@taicc/fireblocks-client";
 import { createDataService } from "@taicc/data-layer";
 import {
@@ -12,6 +15,7 @@ import {
   createDelayedPaymentsWorkflow,
   buildTrustCenterStatus,
   buildSystemIntegrationStatus,
+  buildSandboxDataReadiness,
 } from "@taicc/trusted-ai";
 import { createLogger, generateCorrelationId } from "@taicc/observability";
 import type { Actor, ProvenanceRecord } from "@taicc/shared-types";
@@ -21,8 +25,16 @@ import {
   AiAskRequestSchema,
   DelayedPaymentsInvestigationRequestSchema,
   EscalationSummaryRequestSchema,
+  SandboxActivityRequestSchema,
 } from "@taicc/shared-types";
 import { isDisabledExecutionRoute, EXECUTION_DISABLED_MESSAGE } from "./execution-boundary.js";
+
+const SANDBOX_ADMIN_ACTOR: Actor = {
+  id: "00000000-0000-4000-8000-000000000004",
+  type: "human",
+  name: "Sandbox Activity Admin",
+  roles: ["admin"],
+};
 
 const PLATFORM_VIEWER_ACTOR: Actor = {
   id: "00000000-0000-4000-8000-000000000003",
@@ -118,6 +130,7 @@ let auditStoreKind = "postgres";
 let dataService!: ReturnType<typeof createDataService>;
 let evidencePipeline!: ReturnType<typeof createEvidencePipeline>;
 let delayedPaymentsWorkflow!: ReturnType<typeof createDelayedPaymentsWorkflow>;
+let sandboxActivityGenerator!: SandboxActivityGenerator;
 let bootstrapped = false;
 let shutdownAudit: (() => Promise<void>) | null = null;
 
@@ -134,6 +147,12 @@ async function bootstrap(): Promise<() => Promise<void>> {
     buildFireblocksClientOptions(config),
     auditLogger,
   );
+
+  sandboxActivityGenerator = createSandboxActivityGenerator({
+    client: fireblocksClient,
+    config: buildFireblocksClientOptions(config),
+    auditLogger,
+  });
 
   dataService = createDataService(config, fireblocksClient);
   evidencePipeline = createEvidencePipeline(dataService, auditLogger, config);
@@ -390,6 +409,64 @@ async function handleRequest(
       return;
     }
 
+    if (path === "/v1/fireblocks/sandbox-readiness" && req.method === "GET") {
+      await requirePermission(ctx.actor, "operations:read", correlationId);
+      const readiness = await buildSandboxDataReadiness(config, dataService, fbCtx(ctx));
+      await auditLogger.record({
+        correlationId,
+        eventType: "connection_verification",
+        actorId: ctx.actor.id,
+        outcome: readiness.investigation_ready ? "success" : "failure",
+        metadata: {
+          investigation_ready: readiness.investigation_ready,
+          transaction_count: readiness.metrics.transaction_count,
+        },
+      });
+      json(res, readiness.connected ? 200 : 503, readiness);
+      return;
+    }
+
+    if (path === "/v1/sandbox/activity/capabilities" && req.method === "GET") {
+      ctx.actor = authenticate(req);
+      await requirePermission(ctx.actor, "operations:read", correlationId);
+      json(res, 200, buildSandboxActivityCapabilities(ctx.actor));
+      return;
+    }
+
+    if (path === "/v1/sandbox/activity/generate" && req.method === "POST") {
+      ctx.actor = authenticateSandboxAdmin(req);
+      await requirePermission(ctx.actor, "sandbox:generate", correlationId);
+
+      try {
+        assertSandboxBasePath(config.FIREBLOCKS_BASE_PATH);
+      } catch (error) {
+        json(
+          res,
+          403,
+          errorBody(
+            "SANDBOX_ONLY",
+            error instanceof Error ? error.message : "Sandbox only",
+            correlationId,
+          ),
+        );
+        return;
+      }
+
+      const body = JSON.parse(await readBody(req));
+      const parsed = SandboxActivityRequestSchema.parse(body);
+
+      logger.info("Sandbox activity generation started", {
+        correlationId,
+        actorId: ctx.actor.id,
+        create_vault: parsed.create_vault,
+        has_transfer: Boolean(parsed.transfer),
+      });
+
+      const result = await sandboxActivityGenerator.run(parsed, fbCtx(ctx), ctx.actor.id);
+      json(res, result.ok ? 200 : 502, result);
+      return;
+    }
+
     if (path === "/v1/treasury/analyze" && req.method === "POST") {
       await requirePermission(ctx.actor, "operations:read", correlationId);
       const body = JSON.parse(await readBody(req));
@@ -614,6 +691,62 @@ function authenticate(req: IncomingMessage): Actor {
   }
 
   return authService.verifyToken(token);
+}
+
+function authenticateSandboxAdmin(req: IncomingMessage): Actor {
+  const raw = extractBearerToken(req.headers.authorization);
+  if (!raw?.trim()) throw new AuthError("UNAUTHORIZED", "Missing bearer token");
+  const token = raw.trim();
+
+  if (req.headers["x-taicc-ai-initiated"] === "true") {
+    throw new AuthError(
+      "FORBIDDEN",
+      "Sandbox activity cannot be initiated by AI workflows",
+    );
+  }
+
+  if (config.NODE_ENV !== "production" && token === "dev-token") {
+    return {
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "human",
+      name: "Dev Operator",
+      roles: ["admin"],
+    };
+  }
+
+  if (config.SANDBOX_ADMIN_TOKEN?.trim() && token === config.SANDBOX_ADMIN_TOKEN.trim()) {
+    return SANDBOX_ADMIN_ACTOR;
+  }
+
+  const actor = authService.verifyToken(token);
+  if (actor.type === "agent") {
+    throw new AuthError("FORBIDDEN", "Agents cannot generate sandbox activity");
+  }
+  authService.requirePermission(actor, "sandbox:generate");
+  return actor;
+}
+
+function buildSandboxActivityCapabilities(actor: Actor) {
+  const sandboxOnly = config.FIREBLOCKS_BASE_PATH.includes("sandbox-api.fireblocks.io");
+  let canGenerate = false;
+  let reason: string | undefined;
+
+  if (!sandboxOnly) {
+    reason = "FIREBLOCKS_BASE_PATH is not a Fireblocks sandbox endpoint";
+  } else if (actor.type === "agent") {
+    reason = "Agents cannot generate sandbox activity";
+  } else if (!authService.hasPermission(actor, "sandbox:generate")) {
+    reason = "Admin role or SANDBOX_ADMIN_TOKEN required";
+  } else {
+    canGenerate = true;
+  }
+
+  return {
+    can_generate: canGenerate,
+    sandbox_only: sandboxOnly,
+    ai_execution_blocked: true as const,
+    reason,
+  };
 }
 
 function setCorsHeaders(req: IncomingMessage, res: ServerResponse): void {

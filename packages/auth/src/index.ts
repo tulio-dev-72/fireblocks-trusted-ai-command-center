@@ -27,7 +27,8 @@ export type Permission =
   | "policies:write"
   | "audit:read"
   | "agents:read"
-  | "agents:write";
+  | "agents:write"
+  | "sandbox:generate";
 
 const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   admin: [
@@ -40,6 +41,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "audit:read",
     "agents:read",
     "agents:write",
+    "sandbox:generate",
   ],
   operator: [
     "operations:read",

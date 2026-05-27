@@ -103,6 +103,14 @@ if (!apiViewerToken || apiViewerToken.length < 32) {
   ok(`Using API_VIEWER_TOKEN from env (${apiViewerToken.length} chars)`);
 }
 
+let sandboxAdminToken = process.env.SANDBOX_ADMIN_TOKEN?.trim();
+if (!sandboxAdminToken || sandboxAdminToken.length < 32) {
+  sandboxAdminToken = randomBytes(32).toString("hex");
+  ok(`Generated SANDBOX_ADMIN_TOKEN — use for sandbox activity UI/CLI (not VITE_API_TOKEN)`);
+} else {
+  ok(`Using SANDBOX_ADMIN_TOKEN from env (${sandboxAdminToken.length} chars)`);
+}
+
 let fireblocksPrivateKey = process.env.FIREBLOCKS_PRIVATE_KEY?.trim();
 const keyPath = process.env.FIREBLOCKS_SECRET_KEY_PATH?.trim() ?? "./fireblocks_secret.key";
 const resolvedKeyPath = resolve(root, keyPath);
@@ -133,6 +141,7 @@ const envVars = [
   { key: "DATABASE_URL", value: databaseUrl },
   { key: "JWT_SECRET", value: jwtSecret },
   { key: "API_VIEWER_TOKEN", value: apiViewerToken },
+  { key: "SANDBOX_ADMIN_TOKEN", value: sandboxAdminToken },
   { key: "FIREBLOCKS_API_KEY", value: fireblocksApiKey },
   { key: "FIREBLOCKS_PRIVATE_KEY", value: fireblocksPrivateKey },
   {
@@ -251,6 +260,8 @@ async function main() {
   console.log("\nVercel web env (required for dashboard data):");
   console.log(`  VITE_API_URL=${url}`);
   console.log(`  VITE_API_TOKEN=${apiViewerToken}`);
+  console.log(`\nSandbox activity (admin-only, separate from viewer):`);
+  console.log(`  SANDBOX_ADMIN_TOKEN=${sandboxAdminToken}`);
   console.log("\nWait ~3–5 min for first Docker build, then:");
   console.log(`  curl ${url}/health`);
 }

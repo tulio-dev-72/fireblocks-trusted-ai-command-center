@@ -26,6 +26,9 @@ const envSchema = z.object({
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
 
+  /** Admin bearer for sandbox activity generation (separate from viewer token) */
+  SANDBOX_ADMIN_TOKEN: z.string().min(32).optional(),
+
   /** Shared read-only bearer for public dashboard (VITE_API_TOKEN) — not a Fireblocks JWT */
   API_VIEWER_TOKEN: z.string().min(32).optional(),
 

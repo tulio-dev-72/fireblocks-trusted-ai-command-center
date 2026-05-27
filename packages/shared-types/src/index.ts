@@ -109,6 +109,7 @@ export const AuditEventTypeSchema = z.enum([
   "rbac_filter",
   "user_action",
   "connection_verification",
+  "sandbox_activity",
   "workflow_executed",
   "escalation_prepared",
   "error",
@@ -171,3 +172,5 @@ export * from "./workflows.js";
 export * from "./system-status.js";
 export * from "./system-actors.js";
 export * from "./fireblocks-auth.js";
+export * from "./sandbox-readiness.js";
+export * from "./sandbox-activity.js";

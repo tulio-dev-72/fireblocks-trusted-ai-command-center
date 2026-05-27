@@ -3,6 +3,7 @@ import { z } from "zod";
 /** Origin of every data record exposed to UI and AI layers. */
 export const SourceTypeSchema = z.enum([
   "REAL_FIREBLOCKS",
+  "REAL_FIREBLOCKS_SANDBOX",
   "CUSTOMER_SYSTEM",
   "MARKET_DATA",
   "DERIVED_AI",

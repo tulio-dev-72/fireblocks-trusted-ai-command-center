@@ -7,6 +7,7 @@ import { EvidencePanel } from "./components/EvidencePanel";
 import { TrustCenterPage } from "./components/TrustCenterPage";
 import { AuditLogPage } from "./components/AuditLogPage";
 import { ArchitecturePage } from "./components/ArchitecturePage";
+import { SandboxDataReadinessPage } from "./components/SandboxDataReadinessPage";
 import { FireblocksAuthDiagnosticsPage } from "./components/FireblocksAuthDiagnosticsPage";
 import { DataModeBanner } from "./components/ProvenanceBadge";
 import { SecurityBanner } from "./components/SecurityBanner";
@@ -58,6 +59,7 @@ export function App() {
         />
       )}
       {page === "connection" && <ConnectionStatusPage />}
+      {page === "sandbox-readiness" && <SandboxDataReadinessPage />}
       {page === "fb-auth" && <FireblocksAuthDiagnosticsPage />}
       {page === "evidence" && <EvidencePanel />}
       {page === "trust" && <TrustCenterPage />}

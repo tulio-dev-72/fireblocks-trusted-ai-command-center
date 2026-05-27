@@ -8,5 +8,7 @@ export const PAGE_SUBTITLES: Record<Page, string> = {
   audit: "Workflow and AI events correlated by investigation ID",
   architecture: "Implemented trust boundaries, API flows, and planned capabilities",
   connection: "Fireblocks sandbox credential validation and endpoint reachability",
+  "sandbox-readiness":
+    "Live sandbox readiness metrics and human-only sandbox activity generation",
   "fb-auth": "RS256 JWT signing audit, path-sensitive request preview, and live sandbox auth test",
 };

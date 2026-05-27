@@ -2,6 +2,7 @@ import type { SourceType, ProvenanceMetadata } from "@taicc/shared-types";
 
 const SOURCE_LABELS: Record<SourceType, string> = {
   REAL_FIREBLOCKS: "Fireblocks API",
+  REAL_FIREBLOCKS_SANDBOX: "Fireblocks Sandbox Activity",
   CUSTOMER_SYSTEM: "Customer System",
   MARKET_DATA: "Market Data",
   DERIVED_AI: "AI Derived",
@@ -10,6 +11,7 @@ const SOURCE_LABELS: Record<SourceType, string> = {
 
 const SOURCE_COLORS: Record<SourceType, string> = {
   REAL_FIREBLOCKS: "provenance-real",
+  REAL_FIREBLOCKS_SANDBOX: "provenance-real",
   CUSTOMER_SYSTEM: "provenance-customer",
   MARKET_DATA: "provenance-market",
   DERIVED_AI: "provenance-ai",

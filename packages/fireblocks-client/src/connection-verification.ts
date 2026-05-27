@@ -58,6 +58,10 @@ export class FireblocksConnectionVerificationService {
     return this.config.basePath.includes("sandbox-api.fireblocks.io");
   }
 
+  getLastSuccessfulCallAt(): string | undefined {
+    return this.client.getLastSuccessfulCallAt();
+  }
+
   /** Validate credentials locally — no network call. */
   validateCredentials(): CredentialCheck[] {
     const checks: CredentialCheck[] = [];
