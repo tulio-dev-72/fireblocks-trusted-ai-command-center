@@ -2,6 +2,21 @@ import type { AuthHeaders } from "./auth";
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
+function formatApiError(data: unknown, status: number): string {
+  const body = data as { error?: string; code?: string };
+  const message = body.error ?? `HTTP ${status}`;
+  if (
+    body.code === "INVALID_TOKEN" ||
+    message.includes("Malformed JWT") ||
+    message.includes("Missing bearer token")
+  ) {
+    return (
+      "API authentication failed. Set Vercel VITE_API_TOKEN to the same value as Render API_VIEWER_TOKEN, then redeploy."
+    );
+  }
+  return message;
+}
+
 function resolveAuthToken(): string | null {
   const configured = import.meta.env.VITE_API_TOKEN?.trim();
   if (configured) return configured;
@@ -40,7 +55,7 @@ export const AUTH_HEADERS: AuthHeaders = buildAuthHeaders();
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { headers: buildAuthHeaders() });
   const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(formatApiError(data, res.status));
   return data as T;
 }
 
@@ -51,7 +66,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(formatApiError(data, res.status));
   return data as T;
 }
 
@@ -64,7 +79,7 @@ export async function apiPostAccepted<T>(path: string, body: unknown): Promise<T
   });
   const data = await res.json();
   if (res.status !== 202 && !res.ok) {
-    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new Error(formatApiError(data, res.status));
   }
   return data as T;
 }
@@ -72,7 +87,7 @@ export async function apiPostAccepted<T>(path: string, body: unknown): Promise<T
 export async function apiGetSandboxAdmin<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { headers: buildSandboxAdminAuthHeaders() });
   const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(formatApiError(data, res.status));
   return data as T;
 }
 
@@ -83,7 +98,7 @@ export async function apiPostSandboxAdmin<T>(path: string, body: unknown): Promi
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(formatApiError(data, res.status));
   return data as T;
 }
 
