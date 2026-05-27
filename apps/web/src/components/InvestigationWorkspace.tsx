@@ -2,11 +2,16 @@ import type {
   AuditTimelineEvent,
   DelayedPaymentsInvestigationResponse,
   EscalationSummaryResponse,
+  FireblocksSyncInfo,
   InvestigationMode,
   InvestigationStatus,
+  SandboxDataReadiness,
 } from "@taicc/shared-types";
+import { useEffect, useState } from "react";
+import { apiGet } from "../lib/api";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { InvestigationDelayChart } from "./InvestigationDelayChart";
+import { InvestigationEvidencePanel } from "./InvestigationEvidencePanel";
 
 const REASON_COLORS: Record<string, string> = {
   approval_pending: "reason-approval",
@@ -76,6 +81,24 @@ export function InvestigationWorkspace({
   onNewInvestigation,
 }: Props) {
   const analysis = result?.analysis;
+  const [syncInfo, setSyncInfo] = useState<FireblocksSyncInfo | null>(null);
+
+  useEffect(() => {
+    apiGet<SandboxDataReadiness>("/v1/fireblocks/sandbox-readiness")
+      .then((readiness) => {
+        setSyncInfo({
+          timestamp: readiness.checked_at,
+          environment: readiness.sandbox_mode ? "Sandbox" : "Production",
+          connection_state: readiness.connected
+            ? "active"
+            : readiness.investigation_ready
+              ? "degraded"
+              : "disconnected",
+          last_successful_retrieval: readiness.last_successful_sync,
+        });
+      })
+      .catch(() => setSyncInfo(null));
+  }, [correlationId]);
 
   return (
     <div className="investigation-workspace">
@@ -195,22 +218,12 @@ export function InvestigationWorkspace({
 
               <InvestigationDelayChart groups={result.delay_groups} />
 
-              <section className="workspace-evidence-section">
-                <h4>Evidence Cards</h4>
-                <div className="evidence-cards-grid">
-                  {result.evidence_cards.map((card) => (
-                    <div key={card.id} className="evidence-card">
-                      <div className="evidence-card-top">
-                        <span className={`reason-tag ${REASON_COLORS[card.reason ?? ""] ?? ""}`}>
-                          {card.title}
-                        </span>
-                        <ProvenanceBadge provenance={card.provenance} compact />
-                      </div>
-                      <p className="evidence-card-sub">{card.subtitle}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <InvestigationEvidencePanel
+                result={result}
+                transparency={result.transparency}
+                syncInfo={syncInfo}
+                timeline={timeline}
+              />
 
               <section className="workspace-ai-section">
                 <h4>Operational Analysis</h4>
@@ -278,6 +291,12 @@ export function InvestigationWorkspace({
               <>
                 <dt>Webhook events</dt>
                 <dd>{webhookEventCount}</dd>
+              </>
+            )}
+            {result?.transparency && (
+              <>
+                <dt>Severity</dt>
+                <dd>{result.transparency.operational_severity.replace(/_/g, " ")}</dd>
               </>
             )}
             {result && (

@@ -1,10 +1,11 @@
-import type { AuditLogger, InvestigationStoreLike } from "@taicc/audit";
+import type { AuditLogger, EvidenceStore, InvestigationStoreLike } from "@taicc/audit";
 import type { Actor, InvestigationMode, StartInvestigationResponse } from "@taicc/shared-types";
 import { generateCorrelationId } from "@taicc/observability";
 
 export interface InvestigationRunnerDeps {
   store: InvestigationStoreLike;
   auditLogger: AuditLogger;
+  evidenceStore: EvidenceStore | null;
   delayedPaymentsWorkflow: ReturnType<
     typeof import("@taicc/trusted-ai").createDelayedPaymentsWorkflow
   >;
@@ -70,12 +71,16 @@ export class InvestigationRunner {
     try {
       await this.deps.store.setPhase(correlationId, "retrieving_evidence");
 
+      const webhookEventCount =
+        (await this.deps.evidenceStore?.countOperationalEventsByCorrelation(correlationId)) ?? 0;
+
       const result = await this.deps.delayedPaymentsWorkflow.investigate(
         question,
         actor,
         { correlationId, actorId: actor.id },
         true,
         mode,
+        webhookEventCount,
       );
 
       await this.deps.store.complete(correlationId, result);

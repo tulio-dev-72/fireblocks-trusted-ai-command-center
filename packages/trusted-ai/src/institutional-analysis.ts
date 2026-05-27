@@ -16,6 +16,8 @@ export function buildInstitutionalAnalysis(input: {
     .filter((e) => !e.available)
     .map((e) => `${e.id}: ${e.label} unavailable`);
 
+  missingEvidence.push("No external banking settlement confirmations available.");
+
   const evidenceIds = input.citations.map((c) => c.evidence_id).join(", ") || "none";
   const confidence =
     availableEvidence.length >= 3 && input.citations.length >= 2

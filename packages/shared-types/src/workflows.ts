@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { InvestigationTransparencySchema } from "./evidence-transparency.js";
 import { EvidenceItemSchema, ProvenanceMetadataSchema } from "./provenance.js";
 import { CitationSchema } from "./trusted-ai.js";
 import { TreasuryRecommendationSchema } from "./treasury.js";
@@ -42,6 +43,14 @@ export const EvidenceCardSchema = z.object({
   asset: z.string().optional(),
   evidence_id: z.string(),
   provenance: ProvenanceMetadataSchema,
+  vault_id: z.string().optional(),
+  source_vault_id: z.string().optional(),
+  destination_id: z.string().optional(),
+  timestamp: z.string().datetime().optional(),
+  approval_state: z.string().optional(),
+  policy_reference: z.string().optional(),
+  webhook_event_id: z.string().optional(),
+  details: z.record(z.unknown()).optional(),
 });
 export type EvidenceCard = z.infer<typeof EvidenceCardSchema>;
 
@@ -84,6 +93,7 @@ export const DelayedPaymentsInvestigationResponseSchema = z.object({
   provenance: ProvenanceMetadataSchema,
   correlation_id: z.string().uuid(),
   audit_event_id: z.string().uuid(),
+  transparency: InvestigationTransparencySchema.optional(),
 });
 export type DelayedPaymentsInvestigationResponse = z.infer<
   typeof DelayedPaymentsInvestigationResponseSchema

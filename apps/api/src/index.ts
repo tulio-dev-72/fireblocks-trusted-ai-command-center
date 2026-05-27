@@ -209,6 +209,7 @@ async function bootstrap(): Promise<() => Promise<void>> {
   investigationRunner = createInvestigationRunner({
     store: investigationStore,
     auditLogger,
+    evidenceStore,
     delayedPaymentsWorkflow,
   });
 

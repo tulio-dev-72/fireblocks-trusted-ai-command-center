@@ -26,6 +26,10 @@ import {
   resolveLlmConfig,
 } from "./llm-provider.js";
 import { buildInstitutionalAnalysis, formatInstitutionalAnswer } from "./institutional-analysis.js";
+import {
+  buildInvestigationTransparency,
+  enrichEvidenceCards,
+} from "./evidence-transparency.js";
 
 export class DelayedPaymentsWorkflow {
   constructor(
@@ -40,6 +44,7 @@ export class DelayedPaymentsWorkflow {
     fbCtx: FireblocksCallContext,
     rbacAllowed: boolean,
     mode: InvestigationMode = "operations",
+    webhookEventCount = 0,
   ): Promise<DelayedPaymentsInvestigationResponse> {
     const correlationId = fbCtx.correlationId;
 
@@ -108,13 +113,18 @@ export class DelayedPaymentsWorkflow {
 
     const transactions = txPack.filtered.available ? (txPack.filtered.data ?? []) : [];
     const balances = balancePack.filtered.available ? (balancePack.filtered.data ?? []) : [];
-    const pendingApprovals = (approvalPack.filtered.data ?? []).filter((a) =>
+    const approvals = approvalPack.filtered.available ? (approvalPack.filtered.data ?? []) : [];
+    const pendingApprovals = approvals.filter((a) =>
       a.status.includes("PENDING") || a.status.includes("AUTHORIZATION"),
     );
 
     const grouped = groupDelayedTransactions(transactions, balances);
     const delayGroups = buildDelayGroups(grouped);
-    const evidenceCards = buildEvidenceCards(transactions, balances);
+    const evidenceCards = enrichEvidenceCards(
+      buildEvidenceCards(transactions, balances),
+      transactions,
+      approvals,
+    );
     const recommendations = buildWorkflowRecommendations(delayGroups, pendingApprovals.length);
 
     const groupLines = delayGroups.map(
@@ -186,8 +196,8 @@ export class DelayedPaymentsWorkflow {
       mode,
     });
 
-    return {
-      workflow: "delayed_payments_investigator",
+    const baseResult = {
+      workflow: "delayed_payments_investigator" as const,
       question,
       summary: `${delayedCount} delayed payment(s) across ${delayGroups.length} root-cause group(s); ${pendingApprovals.length} pending approval(s).`,
       ai_answer: formatInstitutionalAnswer(analysis),
@@ -205,15 +215,26 @@ export class DelayedPaymentsWorkflow {
       prompt_logged: llmConfig.promptLogging,
       rbac_enforced: true,
       provenance: {
-        source_type: "DERIVED_AI",
+        source_type: "DERIVED_AI" as const,
         fetched_at: new Date().toISOString(),
         api_endpoint: "POST /v1/workflows/delayed-payments/investigate",
-        mocked_fields: [],
+        mocked_fields: [] as string[],
         correlation_id: correlationId,
       },
       correlation_id: correlationId,
       audit_event_id: auditEvent.id,
     };
+
+    const transparency = buildInvestigationTransparency(baseResult, {
+      webhookEventCount,
+      transactions,
+      balances,
+      approvals,
+      policyAvailable: policyPack.item.available,
+      transactionCount: transactions.length,
+    });
+
+    return { ...baseResult, transparency };
   }
 
   async prepareEscalationSummary(
@@ -332,7 +353,7 @@ function buildEvidenceCards(
         asset: tx.assetId,
         evidence_id: "ev-txs",
         provenance: {
-          source_type: "REAL_FIREBLOCKS",
+          source_type: "REAL_FIREBLOCKS_SANDBOX",
           fetched_at: new Date().toISOString(),
           api_endpoint: "GET /transactions",
           mocked_fields: [],

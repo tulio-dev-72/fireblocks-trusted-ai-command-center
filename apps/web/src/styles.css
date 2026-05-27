@@ -819,3 +819,45 @@ body {
 .chart-empty { font-size: 0.8125rem; color: var(--text-muted); padding: 2rem 0; text-align: center; }
 .operational-charts { margin-bottom: 2rem; }
 .operational-charts .panel-header h2 { font-size: 1.125rem; }
+.investigation-evidence-panel { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.25rem; }
+.transparency-section { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--bg); }
+.transparency-section h4 { margin: 0 0 0.75rem; font-size: 0.875rem; }
+.transparency-section h5 { margin: 0.75rem 0 0.5rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.source-breakdown-dl { display: grid; gap: 0.375rem; }
+.source-breakdown-row { display: grid; grid-template-columns: 1fr auto; gap: 1rem; font-size: 0.8125rem; padding: 0.25rem 0; border-bottom: 1px solid var(--border); }
+.source-breakdown-row.zero { opacity: 0.55; }
+.source-breakdown-row dt { color: var(--text-muted); }
+.source-breakdown-row dd { font-weight: 600; font-variant-numeric: tabular-nums; }
+.truthfulness-banner { padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.8125rem; line-height: 1.5; }
+.truthfulness-banner.warn { background: #422006; border: 1px solid #92400e; color: #fcd34d; }
+.truthfulness-banner.info { background: #0f172a; border: 1px solid var(--border); color: var(--text-muted); }
+.sync-info-dl, .provenance-dl, .trace-ids-dl { display: grid; grid-template-columns: auto 1fr; gap: 0.375rem 1rem; font-size: 0.8125rem; }
+.sync-info-dl dt, .provenance-dl dt, .trace-ids-dl dt { color: var(--text-muted); }
+.connection-active { color: var(--success); font-weight: 600; }
+.severity-badge { display: inline-block; padding: 0.375rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #1e3a5f; }
+.severity-badge.severity-critical_liquidity_constraint { background: #450a0a; color: #fca5a5; }
+.severity-badge.severity-moderate_approval_bottleneck { background: #422006; color: #fcd34d; }
+.severity-badge.severity-elevated_settlement_latency { background: #1e3a5f; color: #93c5fd; }
+.severity-rationale { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.5rem; }
+.ai-transparency-list { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+.ai-transparency-list li { padding: 0.25rem 0.625rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; background: #064e3b; color: var(--success); border: 1px solid #065f46; }
+.execution-phase-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.execution-phase-list li { display: flex; justify-content: space-between; font-size: 0.8125rem; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); }
+.execution-phase-list li.done { border-color: #065f46; background: #052e16; }
+.execution-phase-list li.pending { opacity: 0.65; }
+.evidence-card-expandable { padding: 0; overflow: hidden; }
+.evidence-card-toggle { width: 100%; text-align: left; background: transparent; border: none; color: inherit; cursor: pointer; padding: 1rem; font: inherit; }
+.evidence-card-expand-hint { font-size: 0.6875rem; color: var(--accent); }
+.evidence-card-trace-dl { display: grid; grid-template-columns: auto 1fr; gap: 0.375rem 1rem; padding: 0 1rem 1rem; font-size: 0.75rem; border-top: 1px solid var(--border); margin: 0; }
+.evidence-card-trace-dl dt { color: var(--text-muted); }
+.evidence-graph-nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; }
+.graph-node { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.75rem; }
+.graph-node-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 0.35rem; flex-shrink: 0; }
+.graph-node-kind { display: block; font-size: 0.625rem; text-transform: uppercase; color: var(--text-muted); }
+.graph-node-ref { display: block; font-size: 0.625rem; color: var(--text-muted); }
+.evidence-graph-edges ul { list-style: none; margin: 0; padding: 0; font-size: 0.75rem; }
+.evidence-graph-edges li { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.375rem 0; border-bottom: 1px solid var(--border); }
+.graph-edge-relation { color: var(--accent); font-size: 0.6875rem; }
+.missing-evidence-block { margin-top: 0.75rem; font-size: 0.8125rem; color: var(--warn); }
+.trace-id-list { word-break: break-all; }
+.graph-empty { font-style: italic; }
