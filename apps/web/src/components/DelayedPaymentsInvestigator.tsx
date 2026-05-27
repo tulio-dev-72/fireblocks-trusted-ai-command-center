@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { EscalationSummaryResponse, InvestigationMode } from "@taicc/shared-types";
 import { apiPost } from "../lib/api";
-import { useInvestigationPoll } from "../hooks/useInvestigationPoll";
+import { useInvestigationStream } from "../hooks/useInvestigationStream";
 import { InvestigationWorkspace } from "./InvestigationWorkspace";
 
 const DEFAULT_QUESTION = "Why are these treasury payments delayed?";
@@ -31,31 +31,31 @@ export function DelayedPaymentsInvestigator({
   const [escalation, setEscalation] = useState<EscalationSummaryResponse | null>(null);
   const [escalating, setEscalating] = useState(false);
 
-  const poll = useInvestigationPoll();
+  const stream = useInvestigationStream();
   const [localError, setLocalError] = useState<string | null>(null);
 
   async function investigate() {
     setEscalation(null);
     setLocalError(null);
     setStarted(true);
-    await poll.start(question, mode);
+    await stream.start(question, mode);
   }
 
   useEffect(() => {
-    if (poll.status === "completed" && poll.correlationId) {
-      onInvestigationComplete?.(poll.correlationId);
+    if (stream.status === "completed" && stream.correlationId) {
+      onInvestigationComplete?.(stream.correlationId);
     }
-  }, [poll.status, poll.correlationId, onInvestigationComplete]);
+  }, [stream.status, stream.correlationId, onInvestigationComplete]);
 
   async function prepareEscalation() {
-    if (!poll.result) return;
+    if (!stream.result) return;
     setEscalating(true);
     try {
       const summary = await apiPost<EscalationSummaryResponse>(
         "/v1/workflows/delayed-payments/escalation-summary",
         {
-          correlation_id: poll.result.correlation_id,
-          investigation_summary: poll.result.summary,
+          correlation_id: stream.result.correlation_id,
+          investigation_summary: stream.result.summary,
         },
       );
       setEscalation(summary);
@@ -67,7 +67,7 @@ export function DelayedPaymentsInvestigator({
   }
 
   function handleNewInvestigation() {
-    poll.reset();
+    stream.reset();
     setEscalation(null);
     setStarted(false);
   }
@@ -77,13 +77,14 @@ export function DelayedPaymentsInvestigator({
       <InvestigationWorkspace
         question={question}
         mode={mode}
-        status={poll.status}
-        phase={poll.phase}
-        correlationId={poll.correlationId}
-        timeline={poll.timeline}
-        result={poll.result}
-        error={poll.error ?? localError}
-        running={poll.running}
+        status={stream.status}
+        phase={stream.phase}
+        correlationId={stream.correlationId}
+        timeline={stream.timeline}
+        webhookEventCount={stream.webhookEventCount}
+        result={stream.result}
+        error={stream.error ?? localError}
+        running={stream.running}
         escalation={escalation}
         escalating={escalating}
         onPrepareEscalation={prepareEscalation}
@@ -130,8 +131,8 @@ export function DelayedPaymentsInvestigator({
             className="treasury-question-input"
             placeholder="What should we investigate?"
           />
-          <button className="btn-primary" onClick={investigate} disabled={poll.running}>
-            {poll.running ? "Starting…" : "Start Investigation"}
+          <button className="btn-primary" onClick={investigate} disabled={stream.running}>
+            {stream.running ? "Starting…" : "Start Investigation"}
           </button>
         </div>
 
@@ -139,7 +140,7 @@ export function DelayedPaymentsInvestigator({
           Operational boundary: read-only investigation. No transaction execution from this workspace.
         </p>
 
-        {poll.error && <div className="error-banner">{poll.error}</div>}
+        {stream.error && <div className="error-banner">{stream.error}</div>}
         {localError && <div className="error-banner">{localError}</div>}
       </section>
     </div>

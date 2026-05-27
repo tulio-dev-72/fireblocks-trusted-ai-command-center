@@ -1,4 +1,5 @@
-import type { Citation, EvidenceItem, InstitutionalAnalysis } from "@taicc/shared-types";
+import type { Citation, EvidenceItem, InstitutionalAnalysis, InvestigationMode } from "@taicc/shared-types";
+import { investigationModeRecommendedAction } from "./investigation-mode.js";
 
 export function buildInstitutionalAnalysis(input: {
   question: string;
@@ -8,6 +9,7 @@ export function buildInstitutionalAnalysis(input: {
   correlationId: string;
   auditEventId: string;
   delaySummary?: string;
+  mode?: InvestigationMode;
 }): InstitutionalAnalysis {
   const availableEvidence = input.evidence.filter((e) => e.available);
   const missingEvidence = input.evidence
@@ -38,8 +40,7 @@ export function buildInstitutionalAnalysis(input: {
     operational_impact: operationalImpact,
     root_cause: rootCause,
     evidence: `Evidence IDs cited: ${evidenceIds}. ${input.citations.length} citation(s) from retrieved Fireblocks records.`,
-    recommended_action:
-      "Review cited evidence, validate approval and policy state in Fireblocks, and escalate to treasury leadership if settlement SLA is at risk. No transaction execution from this platform.",
+    recommended_action: investigationModeRecommendedAction(input.mode ?? "operations"),
     audit_reference: `correlation_id=${input.correlationId}; audit_event_id=${input.auditEventId}`,
     confidence,
     missing_evidence: missingEvidence,

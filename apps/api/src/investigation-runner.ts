@@ -56,6 +56,7 @@ export class InvestigationRunner {
       poll: {
         status: `/v1/investigations/${correlationId}`,
         events: `/v1/investigations/${correlationId}/timeline`,
+        stream: `/v1/investigations/${correlationId}/stream`,
       },
     };
   }
@@ -74,6 +75,7 @@ export class InvestigationRunner {
         actor,
         { correlationId, actorId: actor.id },
         true,
+        mode,
       );
 
       await this.deps.store.complete(correlationId, result);
@@ -139,6 +141,13 @@ export function formatAuditTimelineEvent(event: {
             ? "Investigation completed"
             : "Workflow step",
         detail: String(event.metadata?.phase ?? event.action ?? ""),
+      };
+    case "webhook_ingested":
+      return {
+        label: "Webhook ingested",
+        detail: event.metadata?.webhook_event_count
+          ? `${event.metadata.webhook_event_count} operational webhook event(s) for this investigation`
+          : String(event.metadata?.eventType ?? "Fireblocks webhook"),
       };
     case "fireblocks_api_call":
       return { label: "Fireblocks API call", detail: String(event.action ?? "") };

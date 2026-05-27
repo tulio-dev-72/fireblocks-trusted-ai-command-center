@@ -182,6 +182,7 @@ export async function tryHandleEnterpriseRoute(
     const txId = payload.txId ?? payload.transactionId;
 
     let operationalEventId: string | undefined;
+    let webhookEventCount = 0;
     if (ctx.evidenceStore) {
       operationalEventId = await ctx.evidenceStore.ingestOperationalEvent({
         correlationId,
@@ -189,6 +190,7 @@ export async function tryHandleEnterpriseRoute(
         payload,
         fireblocksTxId: typeof txId === "string" ? txId : undefined,
       });
+      webhookEventCount = await ctx.evidenceStore.countOperationalEventsByCorrelation(correlationId);
     }
 
     if (ctx.jobQueue) {
@@ -205,7 +207,7 @@ export async function tryHandleEnterpriseRoute(
       actorId: actor.id,
       action: "POST /v1/webhooks/fireblocks",
       outcome: "success",
-      metadata: { eventType, operationalEventId, fireblocksTxId: txId },
+      metadata: { eventType, operationalEventId, fireblocksTxId: txId, webhook_event_count: webhookEventCount },
     });
 
     ctx.json(ctx.res, 202, {

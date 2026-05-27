@@ -31,6 +31,7 @@ interface Props {
   phase: string | null;
   correlationId: string | null;
   timeline: AuditTimelineEvent[];
+  webhookEventCount?: number;
   result: DelayedPaymentsInvestigationResponse | null;
   error: string | null;
   running: boolean;
@@ -64,6 +65,7 @@ export function InvestigationWorkspace({
   phase,
   correlationId,
   timeline,
+  webhookEventCount = 0,
   result,
   error,
   running,
@@ -103,6 +105,9 @@ export function InvestigationWorkspace({
           <div className="panel-header">
             <h3>Orchestration Log</h3>
             <span className="meta-chip">{timeline.length} events</span>
+            {webhookEventCount > 0 && (
+              <span className="meta-chip">{webhookEventCount} webhooks</span>
+            )}
           </div>
           {timeline.length === 0 ? (
             <p className="empty workspace-waiting">
@@ -267,6 +272,12 @@ export function InvestigationWorkspace({
               <>
                 <dt>Correlation</dt>
                 <dd className="mono">{correlationId.slice(0, 8)}…</dd>
+              </>
+            )}
+            {webhookEventCount > 0 && (
+              <>
+                <dt>Webhook events</dt>
+                <dd>{webhookEventCount}</dd>
               </>
             )}
             {result && (

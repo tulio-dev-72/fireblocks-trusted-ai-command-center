@@ -10,6 +10,7 @@ import type {
   DelayedTransactionGroup,
   EvidenceCard,
   EscalationSummaryResponse,
+  InvestigationMode,
   TransactionRecord,
   TreasuryRecommendation,
 } from "@taicc/shared-types";
@@ -38,6 +39,7 @@ export class DelayedPaymentsWorkflow {
     actor: Actor,
     fbCtx: FireblocksCallContext,
     rbacAllowed: boolean,
+    mode: InvestigationMode = "operations",
   ): Promise<DelayedPaymentsInvestigationResponse> {
     const correlationId = fbCtx.correlationId;
 
@@ -47,7 +49,7 @@ export class DelayedPaymentsWorkflow {
       actorId: actor.id,
       action: "delayed_payments_investigator",
       outcome: "success",
-      metadata: { question, phase: "start" },
+      metadata: { question, phase: "start", mode },
     });
 
     if (!rbacAllowed) {
@@ -129,13 +131,14 @@ export class DelayedPaymentsWorkflow {
       outcome: "success",
       metadata: {
         question,
+        mode,
         model_provider: llmConfig.provider,
         prompt_logged: llmConfig.promptLogging,
       },
     });
 
     const llmResult = await generateGroundedAnswer(
-      { question, context, citations },
+      { question, context, citations, mode },
       llmConfig,
     );
 
@@ -152,6 +155,7 @@ export class DelayedPaymentsWorkflow {
         delayed_count: delayedCount,
         group_count: delayGroups.length,
         model_provider: llmResult.provider,
+        mode,
       },
     });
 
@@ -164,6 +168,7 @@ export class DelayedPaymentsWorkflow {
       metadata: {
         question,
         phase: "complete",
+        mode,
         delayed_count: delayedCount,
         delay_groups: delayGroups.map((g) => ({ reason: g.reason, label: g.label, count: g.count })),
         recommended_actions: recommendations.map((r) => r.action),
@@ -178,6 +183,7 @@ export class DelayedPaymentsWorkflow {
       correlationId,
       auditEventId: auditEvent.id,
       delaySummary: `${delayedCount} delayed payment(s); ${pendingApprovals.length} pending approval(s).`,
+      mode,
     });
 
     return {

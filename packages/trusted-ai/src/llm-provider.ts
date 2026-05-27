@@ -1,10 +1,12 @@
 import type { EnvConfig } from "@taicc/config";
-import type { Citation, EvidenceItem } from "@taicc/shared-types";
+import type { Citation, EvidenceItem, InvestigationMode } from "@taicc/shared-types";
+import { buildInvestigationSystemPrompt } from "./investigation-mode.js";
 
 export interface LlmRequest {
   question: string;
   context: string;
   citations: Citation[];
+  mode?: InvestigationMode;
 }
 
 export interface LlmResult {
@@ -21,15 +23,11 @@ export interface LlmProviderConfig {
   promptLogging: boolean;
 }
 
-const SYSTEM_PROMPT = [
-  "You are an institutional operational intelligence analyst for a Fireblocks treasury command center.",
-  "Respond in an analytical, audit-aware, financially literate tone.",
-  "Structure every response with these sections: Summary, Operational Impact, Root Cause, Evidence, Recommended Action, Audit Reference, Confidence.",
-  "Cite evidence IDs in brackets like [ev-txs]. State confidence as HIGH, MEDIUM, or LOW.",
-  "If evidence is missing, list it under Missing Evidence. Never fabricate transaction IDs, amounts, or statuses.",
-  "Never recommend executing or approving transactions — investigation and escalation preparation only.",
-  "Do not use conversational filler (no 'Great question', 'Happy to help', 'Certainly', 'It looks like', 'Let's explore').",
-].join(" ");
+const SYSTEM_PROMPT = buildInvestigationSystemPrompt("operations");
+
+function resolveSystemPrompt(mode?: InvestigationMode): string {
+  return mode ? buildInvestigationSystemPrompt(mode) : SYSTEM_PROMPT;
+}
 
 export function resolveLlmConfig(config: EnvConfig): LlmProviderConfig {
   const openAiKey = config.OPENAI_API_KEY?.trim();
@@ -100,7 +98,8 @@ export async function generateGroundedAnswer(
 }
 
 function buildUserPrompt(request: LlmRequest): string {
-  return `Question: ${request.question}\n\nEvidence:\n${request.context}\n\nCitations available: ${request.citations.map((c) => c.id).join(", ")}`;
+  const modeLine = request.mode ? `Investigation mode: ${request.mode}\n` : "";
+  return `${modeLine}Question: ${request.question}\n\nEvidence:\n${request.context}\n\nCitations available: ${request.citations.map((c) => c.id).join(", ")}`;
 }
 
 async function callOpenAi(
@@ -117,7 +116,7 @@ async function callOpenAi(
       model: llmConfig.modelId,
       temperature: 0.2,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: resolveSystemPrompt(request.mode) },
         { role: "user", content: buildUserPrompt(request) },
       ],
     }),
@@ -158,7 +157,7 @@ async function callAnthropic(
       model: llmConfig.modelId,
       max_tokens: 2048,
       temperature: 0.2,
-      system: SYSTEM_PROMPT,
+      system: resolveSystemPrompt(request.mode),
       messages: [{ role: "user", content: buildUserPrompt(request) }],
     }),
   });

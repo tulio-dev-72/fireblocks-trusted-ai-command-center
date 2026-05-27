@@ -39,9 +39,10 @@ import {
 import { isDisabledExecutionRoute, EXECUTION_DISABLED_MESSAGE } from "./execution-boundary.js";
 import {
   createInvestigationRunner,
-  formatAuditTimelineEvent,
   type InvestigationRunner,
 } from "./investigation-runner.js";
+import { buildInvestigationStatusSnapshot, buildInvestigationTimeline } from "./investigation-timeline.js";
+import { streamInvestigation } from "./investigation-stream.js";
 
 const SANDBOX_ADMIN_ACTOR: Actor = {
   id: "00000000-0000-4000-8000-000000000004",
@@ -598,58 +599,42 @@ async function handleRequest(
       return;
     }
 
-    const investigationMatch = path.match(/^\/v1\/investigations\/([^/]+)(\/timeline)?$/);
+    const investigationMatch = path.match(/^\/v1\/investigations\/([^/]+)(\/timeline|\/stream)?$/);
     if (investigationMatch && req.method === "GET") {
       await requirePermission(ctx.actor, "operations:read", correlationId);
       const targetId = investigationMatch[1];
-      const isTimeline = Boolean(investigationMatch[2]);
+      const suffix = investigationMatch[2];
 
-      if (isTimeline) {
-        const events = await auditLogger.query({ correlationId: targetId, limit: 200 });
-        json(res, 200, {
-          correlation_id: targetId,
-          events: events.map((event) => {
-            const formatted = formatAuditTimelineEvent({
-              id: event.id,
-              eventType: event.eventType,
-              action: event.action,
-              outcome: event.outcome,
-              timestamp: event.timestamp,
-              metadata: event.metadata,
-            });
-            return {
-              id: event.id,
-              event_type: event.eventType,
-              action: event.action,
-              outcome: event.outcome,
-              timestamp: event.timestamp,
-              label: formatted.label,
-              detail: formatted.detail,
-              metadata: event.metadata,
-            };
-          }),
+      if (suffix === "/stream") {
+        await streamInvestigation(req, res, targetId, {
+          investigationStore,
+          auditLogger,
+          evidenceStore,
         });
         return;
       }
 
-      const record = await investigationStore.get(targetId);
-      if (!record) {
+      if (suffix === "/timeline") {
+        const timeline = await buildInvestigationTimeline(
+          targetId,
+          auditLogger,
+          evidenceStore,
+        );
+        json(res, 200, timeline);
+        return;
+      }
+
+      const snapshot = await buildInvestigationStatusSnapshot(
+        targetId,
+        investigationStore,
+        evidenceStore,
+      );
+      if (!snapshot) {
         json(res, 404, errorBody("NOT_FOUND", "Investigation not found", correlationId));
         return;
       }
 
-      json(res, 200, {
-        correlation_id: record.correlation_id,
-        workflow: record.workflow,
-        mode: record.mode,
-        question: record.question,
-        status: record.status,
-        phase: record.phase,
-        started_at: record.started_at,
-        completed_at: record.completed_at,
-        error: record.error,
-        result: record.result,
-      });
+      json(res, 200, snapshot);
       return;
     }
 

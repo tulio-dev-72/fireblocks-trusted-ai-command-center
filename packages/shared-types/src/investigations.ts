@@ -40,6 +40,7 @@ export const StartInvestigationResponseSchema = z.object({
   poll: z.object({
     status: z.string(),
     events: z.string(),
+    stream: z.string(),
   }),
 });
 export type StartInvestigationResponse = z.infer<typeof StartInvestigationResponseSchema>;
@@ -59,7 +60,7 @@ export const InvestigationRecordSchema = z.object({
 export type InvestigationRecord = z.infer<typeof InvestigationRecordSchema>;
 
 export const AuditTimelineEventSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   event_type: z.string(),
   action: z.string().optional(),
   outcome: z.string(),
@@ -69,3 +70,10 @@ export const AuditTimelineEventSchema = z.object({
   metadata: z.record(z.unknown()).default({}),
 });
 export type AuditTimelineEvent = z.infer<typeof AuditTimelineEventSchema>;
+
+export const InvestigationTimelineResponseSchema = z.object({
+  correlation_id: z.string().uuid(),
+  events: z.array(AuditTimelineEventSchema),
+  webhook_event_count: z.number().int().nonnegative().default(0),
+});
+export type InvestigationTimelineResponse = z.infer<typeof InvestigationTimelineResponseSchema>;

@@ -142,6 +142,14 @@ export class EvidenceStore {
     return row ? row.ingested_at.toISOString() : undefined;
   }
 
+  async countOperationalEventsByCorrelation(correlationId: string): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM operational_events WHERE correlation_id = $1`,
+      [correlationId],
+    );
+    return result.rows[0]?.count ?? 0;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
