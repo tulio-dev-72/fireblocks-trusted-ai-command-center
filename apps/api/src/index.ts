@@ -118,6 +118,8 @@ let auditStoreKind = "postgres";
 let dataService!: ReturnType<typeof createDataService>;
 let evidencePipeline!: ReturnType<typeof createEvidencePipeline>;
 let delayedPaymentsWorkflow!: ReturnType<typeof createDelayedPaymentsWorkflow>;
+let bootstrapped = false;
+let shutdownAudit: (() => Promise<void>) | null = null;
 
 async function bootstrap(): Promise<() => Promise<void>> {
   const auditHandle = await createAuditLogger({
@@ -222,10 +224,19 @@ async function handleRequest(
 
     if (path === "/health") {
       json(res, 200, {
-        status: "ok",
+        status: bootstrapped ? "ok" : "starting",
         service: "api",
         data_mode: dataMode,
-        audit_store: auditStoreKind,
+        audit_store: bootstrapped ? auditStoreKind : "initializing",
+      });
+      return;
+    }
+
+    if (!bootstrapped) {
+      json(res, 503, {
+        status: "starting",
+        message: "API is initializing — retry shortly",
+        correlationId,
       });
       return;
     }
@@ -653,10 +664,8 @@ const server = createServer((req, res) => {
 });
 
 async function main(): Promise<void> {
-  const shutdownAudit = await bootstrap();
-
   const shutdown = async () => {
-    await shutdownAudit();
+    if (shutdownAudit) await shutdownAudit();
   };
   process.on("SIGINT", () => {
     shutdown().finally(() => process.exit(0));
@@ -665,36 +674,48 @@ async function main(): Promise<void> {
     shutdown().finally(() => process.exit(0));
   });
 
-  server.listen(config.API_PORT, config.API_HOST, async () => {
-    logger.info("API gateway started", {
-      host: config.API_HOST,
-      port: config.API_PORT,
-      dataMode,
-      auditStore: auditStoreKind,
-      fireblocksBase: config.FIREBLOCKS_BASE_PATH,
-      transactionExecution: "disabled",
+  await new Promise<void>((resolve) => {
+    server.listen(config.API_PORT, config.API_HOST, () => {
+      logger.info("API gateway listening", {
+        host: config.API_HOST,
+        port: config.API_PORT,
+        dataMode,
+      });
+      resolve();
     });
+  });
 
-    if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
-      const health = await dataService
-        .getConnectionVerification()
-        .getHealth({ correlationId: generateCorrelationId(), actorId: SYSTEM_ACTOR_ID });
-      if (health.status === "ok") {
-        logger.info("Fireblocks sandbox connected", {
-          latencyMs: health.api_latency_ms,
-          sandbox: health.sandbox_mode,
-        });
-      } else {
-        logger.error("Fireblocks sandbox connection failed at startup", {
-          error: health.error,
-          checks: health.credential_checks,
-        });
-        if (config.NODE_ENV === "production") {
-          process.exit(1);
-        }
+  shutdownAudit = await bootstrap();
+  bootstrapped = true;
+
+  logger.info("API gateway started", {
+    host: config.API_HOST,
+    port: config.API_PORT,
+    dataMode,
+    auditStore: auditStoreKind,
+    fireblocksBase: config.FIREBLOCKS_BASE_PATH,
+    transactionExecution: "disabled",
+  });
+
+  if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
+    const health = await dataService
+      .getConnectionVerification()
+      .getHealth({ correlationId: generateCorrelationId(), actorId: SYSTEM_ACTOR_ID });
+    if (health.status === "ok") {
+      logger.info("Fireblocks sandbox connected", {
+        latencyMs: health.api_latency_ms,
+        sandbox: health.sandbox_mode,
+      });
+    } else {
+      logger.error("Fireblocks sandbox connection failed at startup", {
+        error: health.error,
+        checks: health.credential_checks,
+      });
+      if (config.NODE_ENV === "production") {
+        process.exit(1);
       }
     }
-  });
+  }
 }
 
 main().catch((error) => {
