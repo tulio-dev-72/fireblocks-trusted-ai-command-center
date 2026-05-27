@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fireblocks-trusted-ai": {
+      "command": "node",
+      "args": [
+        "-r",
+        "/path/to/fireblocks-trusted-ai-command-center/scripts/load-env.cjs",
+        "/path/to/fireblocks-trusted-ai-command-center/apps/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@ Every data record includes `source_type`:
 - `REAL_FIREBLOCKS` — live Fireblocks API response
 - `CUSTOMER_SYSTEM` — internal platform data (audit log, etc.)
 - `MARKET_DATA` — external market feeds
-- `DERIVED_AI` — AI-generated drafts (transaction drafts are never submitted)
+- `DERIVED_AI` — AI-generated analysis (no transaction submission)
 - `DEMO_SEED` — local development seed data
 
 See [docs/architecture/DATA_LAYER.md](./docs/architecture/DATA_LAYER.md) for full details.
@@ -25,7 +25,7 @@ See [docs/architecture/DATA_LAYER.md](./docs/architecture/DATA_LAYER.md) for ful
 1. **Real data first** — production never serves synthetic data.
 2. **Provenance on every record** — UI and AI layers display `source_type`.
 3. **Fail closed** — missing Fireblocks credentials block startup in production; unavailable API data returns "data unavailable", not invented values.
-4. **Read-only Fireblocks** — transaction execution disabled; draft preparation only.
+4. **Read-only Fireblocks** — transaction execution, signing, and approval routes disabled (`403 EXECUTION_DISABLED`).
 5. **Security layer precedes capability layer** — policy evaluation before any action.
 
 ## Monorepo Structure
@@ -33,7 +33,7 @@ See [docs/architecture/DATA_LAYER.md](./docs/architecture/DATA_LAYER.md) for ful
 ```
 apps/
   api/               REST API — data layer, connection status, evidence panel
-  command-center/    Operator dashboard with provenance labels
+  web/               Operator dashboard (Vercel)
   mcp-server/        Read-only MCP tools backed by data layer
   worker/            Async jobs
 
@@ -66,8 +66,14 @@ pnpm dev
 | Service          | Port | Description                    |
 |------------------|------|--------------------------------|
 | API Gateway      | 3001 | REST API + data layer (local dev; override with `API_PORT`) |
-| Command Center   | 5173 | Dashboard, connection, evidence|
+| Web app          | 5173 | Dashboard, connection, evidence|
 | MCP Server       | stdio| Read-only MCP tools            |
+
+## Production deployment
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for Vercel (web), Render/Railway (API), Neon (Postgres), and Upstash (Redis).
+
+**MCP (local):** read-only Fireblocks tools for Cursor — see [docs/MCP.md](./docs/MCP.md). Not deployed to the cloud.
 
 ## API Endpoints (data)
 
@@ -84,7 +90,7 @@ pnpm dev
 | `GET /v1/counterparties` | Network connections |
 | `GET /v1/activity-logs` | Fireblocks audit logs |
 | `GET /v1/evidence` | Evidence panel with provenance |
-| `POST /v1/transactions/draft` | Draft preparation only (not submitted) |
+| `POST /v1/transactions/draft` | Disabled — returns 403 EXECUTION_DISABLED |
 
 ## Security
 

@@ -16,6 +16,7 @@ build/
 
 # Fireblocks credentials (never commit)
 fireblocks_secret.key
+*.key
 *.pem
 *.p12
 

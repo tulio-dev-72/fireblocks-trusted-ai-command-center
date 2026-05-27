@@ -17,6 +17,8 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3000),
   API_HOST: z.string().default("0.0.0.0"),
   API_CORS_ORIGINS: z.string().default("http://localhost:5173"),
+  /** Production Vercel web URL — must match the single entry in API_CORS_ORIGINS */
+  PUBLIC_FRONTEND_URL: z.string().url().optional(),
 
   MCP_PORT: z.coerce.number().int().positive().default(3100),
   MCP_SERVER_NAME: z.string().default("fireblocks-trusted-ai"),
@@ -36,6 +38,8 @@ const envSchema = z.object({
   HYBRID_MODE: bool.default(false),
 
   FIREBLOCKS_API_KEY: z.string().optional(),
+  /** RSA PEM for cloud deployments — never commit; use platform secret store */
+  FIREBLOCKS_PRIVATE_KEY: z.string().optional(),
   FIREBLOCKS_SECRET_KEY_PATH: z.string().default("./fireblocks_secret.key"),
   FIREBLOCKS_BASE_PATH: z
     .string()
@@ -52,6 +56,10 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .default("postgresql://taicc:taicc@localhost:5432/taicc"),
+
+  /** postgres (default) | memory (test-only fallback) */
+  AUDIT_STORE: z.enum(["postgres", "memory"]).default("postgres"),
+  AUDIT_BOOTSTRAP_SCHEMA: bool.default(true),
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z
     .string()
@@ -71,7 +79,7 @@ const envSchema = z.object({
   AI_NO_TRAINING_STATEMENT: z
     .string()
     .default(
-      "Customer operational data is never used to train foundation models. AI answers are generated from retrieved Fireblocks evidence only.",
+      "When OpenAI or Anthropic is configured, prompts are sent to that provider API. See provider data-use documentation for retention and training policies. Local evidence formatting does not call an external model.",
     ),
 });
 
@@ -91,6 +99,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EnvConfig {
   }
 
   validateDataMode(result.data);
+  validateProductionConfig(result.data);
   cachedConfig = result.data;
   return cachedConfig;
 }
@@ -100,7 +109,12 @@ export function resetConfigCache(): void {
 }
 
 export function getCorsOrigins(config: EnvConfig): string[] {
-  return config.API_CORS_ORIGINS.split(",").map((o) => o.trim());
+  if (config.NODE_ENV === "production" && config.PUBLIC_FRONTEND_URL) {
+    return [config.PUBLIC_FRONTEND_URL.replace(/\/$/, "")];
+  }
+  return config.API_CORS_ORIGINS.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
 }
 
 export function resolveDataMode(config: EnvConfig): DataMode {
@@ -115,6 +129,9 @@ export function fireblocksCredentialsPresent(config: EnvConfig): {
   secretKey: boolean;
 } {
   const apiKey = Boolean(config.FIREBLOCKS_API_KEY?.trim());
+  if (config.FIREBLOCKS_PRIVATE_KEY?.trim()) {
+    return { apiKey, secretKey: true };
+  }
   let secretKey = false;
   try {
     if (existsSync(config.FIREBLOCKS_SECRET_KEY_PATH)) {
@@ -125,6 +142,93 @@ export function fireblocksCredentialsPresent(config: EnvConfig): {
     secretKey = false;
   }
   return { apiKey, secretKey };
+}
+
+export function buildFireblocksClientOptions(config: EnvConfig) {
+  return {
+    apiKey: config.FIREBLOCKS_API_KEY ?? "",
+    secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
+    secretKeyInline: config.FIREBLOCKS_PRIVATE_KEY,
+    basePath: config.FIREBLOCKS_BASE_PATH,
+    workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
+  };
+}
+
+const WEAK_JWT_SECRETS = new Set([
+  "change-me-in-production-use-kms",
+  "dev-secret-change-me",
+  "secret",
+]);
+
+/** Production fails closed when required secrets or stores are missing. */
+export function validateProductionConfig(config: EnvConfig): void {
+  if (config.NODE_ENV !== "production") return;
+
+  if (
+    !config.JWT_SECRET ||
+    config.JWT_SECRET.length < 32 ||
+    WEAK_JWT_SECRETS.has(config.JWT_SECRET)
+  ) {
+    throw new Error(
+      "Production requires JWT_SECRET with at least 32 characters (not a default placeholder).",
+    );
+  }
+
+  if (config.AUDIT_STORE === "postgres") {
+    if (!config.DATABASE_URL?.startsWith("postgresql://")) {
+      throw new Error("Production requires DATABASE_URL (postgresql://) for AUDIT_STORE=postgres.");
+    }
+  }
+
+  if (config.AUDIT_STORE === "memory") {
+    throw new Error("AUDIT_STORE=memory is forbidden in production. Use postgres.");
+  }
+
+  const cors = getCorsOrigins(config);
+  if (cors.length !== 1) {
+    throw new Error(
+      "Production requires exactly one frontend origin — set PUBLIC_FRONTEND_URL or a single API_CORS_ORIGINS value.",
+    );
+  }
+  if (cors[0]?.includes("localhost")) {
+    throw new Error(
+      "Production CORS must be your public Vercel web URL — localhost is not allowed.",
+    );
+  }
+
+  if (!config.FIREBLOCKS_PRIVATE_KEY?.trim()) {
+    throw new Error(
+      "Production requires FIREBLOCKS_PRIVATE_KEY as an environment variable (do not rely on local key files).",
+    );
+  }
+
+  if (!config.FIREBLOCKS_API_KEY?.trim()) {
+    throw new Error("Production requires FIREBLOCKS_API_KEY.");
+  }
+
+  const hasLlm =
+    Boolean(config.OPENAI_API_KEY?.trim()) || Boolean(config.ANTHROPIC_API_KEY?.trim());
+  if (!hasLlm) {
+    throw new Error(
+      "Production requires at least one LLM provider key (OPENAI_API_KEY or ANTHROPIC_API_KEY).",
+    );
+  }
+
+  if (!config.REDIS_URL?.startsWith("redis")) {
+    throw new Error("Production requires REDIS_URL (Upstash redis:// or rediss:// URL).");
+  }
+
+  if (!config.REAL_FIREBLOCKS) {
+    throw new Error("Production requires REAL_FIREBLOCKS=true.");
+  }
+
+  if (config.DEMO_MODE) {
+    throw new Error("DEMO_MODE=true is forbidden in production.");
+  }
+
+  if (config.HYBRID_MODE) {
+    throw new Error("HYBRID_MODE=true is forbidden in production.");
+  }
 }
 
 /**
@@ -153,7 +257,7 @@ export function validateDataMode(config: EnvConfig): void {
     const creds = fireblocksCredentialsPresent(config);
     if (!creds.apiKey || !creds.secretKey) {
       throw new Error(
-        "Production requires Fireblocks credentials (FIREBLOCKS_API_KEY and FIREBLOCKS_SECRET_KEY_PATH). " +
+        "Production requires Fireblocks credentials (FIREBLOCKS_API_KEY and FIREBLOCKS_PRIVATE_KEY). " +
           "Refusing to start — no silent fallback to demo data.",
       );
     }

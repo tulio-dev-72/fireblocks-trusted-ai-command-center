@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Page } from "../lib/navigation";
 import { NAV_ITEMS } from "../lib/navigation";
+import { PAGE_SUBTITLES } from "../lib/page-meta";
 
 interface ShellProps {
   page: Page;
@@ -55,13 +56,11 @@ export function Shell({ page, onNavigate, dataMode, children }: ShellProps) {
             <h1 className="page-title">
               {NAV_ITEMS.find((i) => i.id === page)?.label ?? "Command Center"}
             </h1>
-            <p className="page-subtitle">
-              Fireblocks operational intelligence with auditable AI workflows
-            </p>
+            <p className="page-subtitle">{PAGE_SUBTITLES[page]}</p>
           </div>
           <div className="topbar-meta">
             <span className="meta-chip">Read-only</span>
-            <span className="meta-chip">Human approval required</span>
+            <span className="meta-chip">No tx execution</span>
           </div>
         </header>
         <main className="content">{children}</main>

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { createSign, createPrivateKey } from "node:crypto";
 import type {
   CredentialCheck,
@@ -9,10 +9,12 @@ import type {
 } from "@taicc/shared-types";
 import type { FireblocksClient } from "./index.js";
 import type { FireblocksCallContext } from "./index.js";
+import { isFireblocksPrivateKeyConfigured, resolveFireblocksPrivateKey } from "./secret-key.js";
 
 export interface ConnectionVerificationConfig {
   apiKey: string;
   secretKeyPath: string;
+  secretKeyInline?: string;
   basePath: string;
   workspaceId?: string;
   dataMode: DataMode;
@@ -81,12 +83,20 @@ export class FireblocksConnectionVerificationService {
       });
     }
 
+    const inlineKey = this.config.secretKeyInline?.trim();
     const keyPath = this.config.secretKeyPath;
-    if (!keyPath?.trim()) {
+
+    if (inlineKey) {
+      checks.push({
+        check: "secret_key_env",
+        valid: true,
+        message: "FIREBLOCKS_PRIVATE_KEY configured (inline secret — not from file)",
+      });
+    } else if (!keyPath?.trim()) {
       checks.push({
         check: "secret_key_path",
         valid: false,
-        message: "FIREBLOCKS_SECRET_KEY_PATH is not set",
+        message: "Set FIREBLOCKS_PRIVATE_KEY or FIREBLOCKS_SECRET_KEY_PATH",
       });
     } else if (!existsSync(keyPath)) {
       checks.push({
@@ -132,16 +142,23 @@ export class FireblocksConnectionVerificationService {
 
   private validateJwtSigning(): CredentialCheck {
     try {
-      const keyPath = this.config.secretKeyPath;
-      if (!existsSync(keyPath)) {
+      if (
+        !isFireblocksPrivateKeyConfigured({
+          secretKeyPath: this.config.secretKeyPath,
+          secretKeyInline: this.config.secretKeyInline,
+        })
+      ) {
         return {
           check: "jwt_signing",
           valid: false,
-          message: "Cannot validate JWT signing — private key file missing",
+          message: "Cannot validate JWT signing — private key not configured",
         };
       }
 
-      const pem = readFileSync(keyPath, "utf-8").trim();
+      const pem = resolveFireblocksPrivateKey({
+        secretKeyPath: this.config.secretKeyPath,
+        secretKeyInline: this.config.secretKeyInline,
+      });
       if (!pem.includes("BEGIN") || !pem.includes("PRIVATE KEY")) {
         return {
           check: "jwt_signing",
@@ -181,7 +198,7 @@ export class FireblocksConnectionVerificationService {
     const details = failures.map((f) => `  - ${f.check}: ${f.message}`).join("\n");
     throw new Error(
       `Fireblocks credential validation failed — refusing to start in real mode.\n${details}\n` +
-        "Fix FIREBLOCKS_API_KEY, FIREBLOCKS_SECRET_KEY_PATH, and FIREBLOCKS_BASE_PATH. " +
+        "Fix FIREBLOCKS_API_KEY, FIREBLOCKS_PRIVATE_KEY (or FIREBLOCKS_SECRET_KEY_PATH), and FIREBLOCKS_BASE_PATH. " +
         "Never silently falling back to demo data.",
     );
   }
@@ -200,8 +217,16 @@ export class FireblocksConnectionVerificationService {
       demo_mode: this.config.demoMode,
       hybrid_mode: this.config.hybridMode,
       sandbox_mode: this.isSandboxMode(),
-      credentials_present: Boolean(this.config.apiKey?.trim()) && existsSync(this.config.secretKeyPath),
-      secret_key_present: existsSync(this.config.secretKeyPath),
+      credentials_present:
+        Boolean(this.config.apiKey?.trim()) &&
+        isFireblocksPrivateKeyConfigured({
+          secretKeyPath: this.config.secretKeyPath,
+          secretKeyInline: this.config.secretKeyInline,
+        }),
+      secret_key_present: isFireblocksPrivateKeyConfigured({
+        secretKeyPath: this.config.secretKeyPath,
+        secretKeyInline: this.config.secretKeyInline,
+      }),
       base_path: this.config.basePath,
       workspace_id: this.config.workspaceId,
       last_checked_at: now,

@@ -5,6 +5,7 @@ export const CredentialCheckSchema = z.object({
   check: z.enum([
     "api_key",
     "secret_key_path",
+    "secret_key_env",
     "jwt_signing",
     "base_path",
   ]),

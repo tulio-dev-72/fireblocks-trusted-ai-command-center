@@ -58,7 +58,7 @@ export function DataModeBanner({
   if (mode === "real") {
     return (
       <div className="mode-banner mode-real">
-        Real Fireblocks data — production mode
+        Real Fireblocks sandbox data — live API
       </div>
     );
   }

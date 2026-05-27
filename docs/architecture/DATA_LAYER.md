@@ -116,7 +116,7 @@ Transaction **execution is disabled** across all modes:
 
 - `FireblocksClient` exposes read methods and `prepareTransactionDraft()` only.
 - Drafts have `source_type: DERIVED_AI` and `execution_disabled: true`.
-- MCP server exposes `prepare_transaction_draft`, not `create_transaction`.
+- MCP server exposes read-only tools only; transaction execution tools are disabled.
 - No code path calls `transactions.createTransaction`.
 
 ## AI Data Policy

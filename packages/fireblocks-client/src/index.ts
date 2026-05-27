@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import {
   Fireblocks,
@@ -10,6 +9,7 @@ import {
   type VaultAccount,
 } from "@fireblocks/ts-sdk";
 import type { AuditLogger } from "@taicc/audit";
+import { resolveFireblocksPrivateKey } from "./secret-key.js";
 import type {
   VaultAccountRecord,
   VaultAssetRecord,
@@ -26,6 +26,8 @@ import type {
 export interface FireblocksClientConfig {
   apiKey: string;
   secretKeyPath: string;
+  /** PEM from FIREBLOCKS_PRIVATE_KEY env — preferred in cloud deployments */
+  secretKeyInline?: string;
   basePath: string;
   workspaceId?: string;
 }
@@ -96,11 +98,14 @@ export class FireblocksClient {
 
     let secretKey: string;
     try {
-      secretKey = readFileSync(this.config.secretKeyPath, "utf-8");
-    } catch {
+      secretKey = resolveFireblocksPrivateKey({
+        secretKeyPath: this.config.secretKeyPath,
+        secretKeyInline: this.config.secretKeyInline,
+      });
+    } catch (error) {
       throw new FireblocksClientError(
         "SECRET_KEY_NOT_FOUND",
-        `Fireblocks secret key not found at: ${this.config.secretKeyPath}`,
+        error instanceof Error ? error.message : "Fireblocks private key not configured",
       );
     }
 
@@ -523,5 +528,10 @@ export {
   SANDBOX_BASE,
 } from "./connection-verification.js";
 export type { ConnectionVerificationConfig } from "./connection-verification.js";
+export {
+  resolveFireblocksPrivateKey,
+  isFireblocksPrivateKeyConfigured,
+} from "./secret-key.js";
+export type { FireblocksSecretKeySource } from "./secret-key.js";
 
 export type { TransactionRequest };

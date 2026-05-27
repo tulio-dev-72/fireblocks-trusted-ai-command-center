@@ -37,13 +37,13 @@ export function EvidencePanel() {
     <section className="panel">
       <h2>Evidence Library</h2>
       <p className="panel-desc">
-        Aggregated evidence bundles used by AI workflows. Every item carries provenance metadata
-        and is eligible for citation in trusted answers.
+        Aggregated evidence bundles retrieved for AI workflows. Each item includes provenance
+        metadata and is eligible for citation when source_type is REAL_FIREBLOCKS.
       </p>
       <div className="ai-sources">
-        AI-eligible sources:{" "}
+        RBAC-filtered sources eligible for LLM citation:{" "}
         {evidence.ai_eligible_sources.length === 0
-          ? "None (demo/hybrid mode or no real data)"
+          ? "None available — verify REAL_FIREBLOCKS mode and permissions"
           : evidence.ai_eligible_sources.join(", ")}
       </div>
 

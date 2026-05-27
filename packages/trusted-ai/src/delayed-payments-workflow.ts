@@ -67,11 +67,24 @@ export class DelayedPaymentsWorkflow {
         this.dataService.getActivePolicy(fbCtx),
       ]);
 
+    const txPack = this.dataService.toAiEvidence("Transactions", txResult, "ev-txs");
+    const approvalPack = this.dataService.toAiEvidence(
+      "Approval Queue",
+      approvalResult,
+      "ev-approvals",
+    );
+    const balancePack = this.dataService.toAiEvidence(
+      "Vault Balances",
+      balanceResult,
+      "ev-balances",
+    );
+    const policyPack = this.dataService.toAiEvidence("Active Policy", policyResult, "ev-policy");
+
     const evidence = [
-      this.dataService.toEvidence("Transactions", txResult, "ev-txs"),
-      this.dataService.toEvidence("Approval Queue", approvalResult, "ev-approvals"),
-      this.dataService.toEvidence("Vault Balances", balanceResult, "ev-balances"),
-      this.dataService.toEvidence("Active Policy", policyResult, "ev-policy"),
+      txPack.item,
+      approvalPack.item,
+      balancePack.item,
+      policyPack.item,
     ];
 
     for (const item of evidence) {
@@ -81,13 +94,18 @@ export class DelayedPaymentsWorkflow {
         actorId: actor.id,
         resourceType: item.label,
         outcome: item.available ? "success" : "failure",
-        metadata: { evidenceId: item.id, workflow: "delayed_payments_investigator" },
+        metadata: {
+          evidenceId: item.id,
+          workflow: "delayed_payments_investigator",
+          source_type: item.provenance.source_type,
+          rbac_filtered: !item.available,
+        },
       });
     }
 
-    const transactions = txResult.available ? (txResult.data ?? []) : [];
-    const balances = balanceResult.available ? (balanceResult.data ?? []) : [];
-    const pendingApprovals = (approvalResult.data ?? []).filter((a) =>
+    const transactions = txPack.filtered.available ? (txPack.filtered.data ?? []) : [];
+    const balances = balancePack.filtered.available ? (balancePack.filtered.data ?? []) : [];
+    const pendingApprovals = (approvalPack.filtered.data ?? []).filter((a) =>
       a.status.includes("PENDING") || a.status.includes("AUTHORIZATION"),
     );
 
@@ -142,7 +160,13 @@ export class DelayedPaymentsWorkflow {
       actorId: actor.id,
       action: "delayed_payments_investigator",
       outcome: "success",
-      metadata: { question, phase: "complete", delayed_count: delayedCount },
+      metadata: {
+        question,
+        phase: "complete",
+        delayed_count: delayedCount,
+        delay_groups: delayGroups.map((g) => ({ reason: g.reason, label: g.label, count: g.count })),
+        recommended_actions: recommendations.map((r) => r.action),
+      },
     });
 
     return {
@@ -199,25 +223,42 @@ export class DelayedPaymentsWorkflow {
       },
     });
 
+    const completeEvent = events.find(
+      (e) =>
+        e.action === "delayed_payments_investigator" &&
+        e.metadata?.phase === "complete",
+    );
+    const delayGroupsMeta = completeEvent?.metadata?.delay_groups as
+      | Array<{ label: string; count: number }>
+      | undefined;
+    const storedActions = completeEvent?.metadata?.recommended_actions as string[] | undefined;
+
     const delayedMeta = workflowEvents.find((e) => e.metadata?.delayed_count != null);
     const delayedCount = Number(delayedMeta?.metadata?.delayed_count ?? 0);
+
+    const topReasons =
+      delayGroupsMeta && delayGroupsMeta.length > 0
+        ? delayGroupsMeta.map((g) => `${g.label} (${g.count})`)
+        : delayedCount > 0
+          ? [`${delayedCount} non-final transaction(s) — re-run investigator for root-cause breakdown`]
+          : ["No delayed payments in current Fireblocks sandbox history"];
+
+    const recommendedActions =
+      storedActions && storedActions.length > 0
+        ? storedActions
+        : [
+            "Review Fireblocks approval queue with authorized signers",
+            "Validate policy rules affecting held transactions",
+          ];
 
     return {
       title: "Treasury Escalation Summary — Delayed Payments",
       summary:
         investigationSummary ??
-        `Executive escalation draft for correlation ${correlationId}. ${delayedCount} delayed payment(s) identified from live Fireblocks evidence. Human approval required before any outbound action.`,
+        `Escalation draft for correlation ${correlationId}. ${delayedCount} delayed payment(s) from Fireblocks evidence. Draft only — human approval required before any outbound action.`,
       delayed_count: delayedCount,
-      top_reasons: [
-        "Approval pending — awaiting authorized signers",
-        "Policy / compliance screening holds",
-        "Network confirmation delays",
-      ],
-      recommended_actions: [
-        "Review pending approvals with treasury signers",
-        "Validate policy rules affecting held transactions",
-        "Escalate failed transfers to operations for manual review",
-      ],
+      top_reasons: topReasons,
+      recommended_actions: recommendedActions,
       evidence_refs: ["ev-txs", "ev-approvals", "ev-balances", "ev-policy"],
       prepared_at: new Date().toISOString(),
       correlation_id: correlationId,

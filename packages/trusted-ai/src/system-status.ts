@@ -6,6 +6,7 @@ import type {
   IntegrationCheck,
   SystemIntegrationStatus,
 } from "@taicc/shared-types";
+import { SYSTEM_ACTOR_ID } from "@taicc/shared-types";
 
 async function probeOpenAi(config: EnvConfig): Promise<IntegrationCheck> {
   const apiKey = config.OPENAI_API_KEY?.trim();
@@ -128,7 +129,7 @@ export async function buildSystemIntegrationStatus(
   dataService: DataService,
   correlationId: string,
 ): Promise<SystemIntegrationStatus> {
-  const fbCtx = { correlationId, actorId: "system" };
+  const fbCtx = { correlationId, actorId: SYSTEM_ACTOR_ID };
   const verification = dataService.getConnectionVerification();
   const health = await verification.getHealth(fbCtx);
 
@@ -191,7 +192,9 @@ export async function buildSystemIntegrationStatus(
       label: "Audit Logging",
       status: config.AI_PROMPT_LOGGING ? "active" : "inactive",
       detail: config.AI_PROMPT_LOGGING
-        ? "Immutable audit trail enabled for prompts, evidence, and workflows"
+        ? config.AUDIT_STORE === "postgres"
+          ? "Append-only Postgres audit_events — prompts, evidence, workflows, RBAC, Fireblocks API calls"
+          : "Prompt logging enabled (in-memory test store)"
         : "Prompt logging disabled",
     },
     {

@@ -20,7 +20,8 @@ export function TrustCenterPage() {
       <section className="panel trust-hero">
         <h2>Trust Center</h2>
         <p className="panel-desc">
-          Transparency into how AI workflows access data, enforce boundaries, and maintain auditability.
+          Runtime configuration for data access boundaries, RBAC, audit logging, and LLM provider
+          selection. Values reflect the current deployment — not marketing claims.
         </p>
         <div className="trust-model-bar">
           <div>
@@ -54,7 +55,7 @@ export function TrustCenterPage() {
       </div>
 
       <section className="panel trust-statement">
-        <h3>No Training on Customer Data</h3>
+        <h3>LLM Provider Data Use</h3>
         <p>{status.no_training_statement.description}</p>
       </section>
     </div>

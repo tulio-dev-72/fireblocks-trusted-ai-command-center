@@ -6,7 +6,9 @@ import { ConnectionStatusPage } from "./components/ConnectionStatusPage";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { TrustCenterPage } from "./components/TrustCenterPage";
 import { AuditLogPage } from "./components/AuditLogPage";
+import { ArchitecturePage } from "./components/ArchitecturePage";
 import { DataModeBanner } from "./components/ProvenanceBadge";
+import { SecurityBanner } from "./components/SecurityBanner";
 import { API_URL } from "./lib/api";
 import type { Page } from "./lib/navigation";
 
@@ -33,6 +35,7 @@ export function App() {
 
   return (
     <Shell page={page} onNavigate={navigate} dataMode={dataMode?.mode}>
+      <SecurityBanner />
       {dataMode && (
         <DataModeBanner mode={dataMode.mode} demoMode={dataMode.demo_mode} />
       )}
@@ -42,6 +45,7 @@ export function App() {
           onStartInvestigation={() => {
             setPage("investigator");
           }}
+          onNavigate={navigate}
         />
       )}
       {page === "investigator" && (
@@ -56,6 +60,7 @@ export function App() {
       {page === "evidence" && <EvidencePanel />}
       {page === "trust" && <TrustCenterPage />}
       {page === "audit" && <AuditLogPage correlationFilter={auditCorrelation} />}
+      {page === "architecture" && <ArchitecturePage />}
     </Shell>
   );
 }

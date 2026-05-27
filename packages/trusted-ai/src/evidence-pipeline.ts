@@ -56,7 +56,7 @@ export class EvidencePipeline {
 
     if (this.dataService.getMode() === "demo") {
       throw new Error(
-        "AI evidence pipeline requires REAL_FIREBLOCKS=true. Demo seed data is excluded from trusted AI answers.",
+        "AI evidence pipeline requires REAL_FIREBLOCKS=true. Demo seed data is excluded from LLM context.",
       );
     }
 
@@ -69,10 +69,10 @@ export class EvidencePipeline {
     ]);
 
     const evidence: EvidenceItem[] = [
-      this.dataService.toEvidence("Transactions", txResult, "ev-txs"),
-      this.dataService.toEvidence("Approval Queue", approvals, "ev-approvals"),
-      this.dataService.toEvidence("Vault Balances", balances, "ev-balances"),
-      this.dataService.toEvidence("Active Policy", policy, "ev-policy"),
+      this.dataService.toAiEvidence("Transactions", txResult, "ev-txs").item,
+      this.dataService.toAiEvidence("Approval Queue", approvals, "ev-approvals").item,
+      this.dataService.toAiEvidence("Vault Balances", balances, "ev-balances").item,
+      this.dataService.toAiEvidence("Active Policy", policy, "ev-policy").item,
     ];
 
     for (const item of evidence) {

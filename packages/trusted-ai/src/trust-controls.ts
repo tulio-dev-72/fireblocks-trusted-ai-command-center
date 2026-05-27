@@ -18,10 +18,12 @@ export function buildTrustCenterStatus(
     id: "prompt_logging",
     label: "Prompt Logging",
     status: config.AI_PROMPT_LOGGING ? "active" : "disabled",
-    description: "All AI prompts and workflow questions are written to the immutable audit trail.",
+    description: "AI prompts and workflow questions are written to the audit log when enabled.",
     detail: config.AI_PROMPT_LOGGING
-      ? "Enabled — prompts stored with correlation IDs"
-      : "Disabled — not recommended for production",
+      ? config.AUDIT_STORE === "postgres"
+        ? "Enabled — prompts persisted to Postgres audit_events with correlation IDs"
+        : "Enabled — prompts stored in-memory (AUDIT_STORE=memory)"
+      : "Disabled — enable AI_PROMPT_LOGGING for workflow traceability",
   };
 
   const dataProvenance: TrustControl = {
@@ -55,26 +57,29 @@ export function buildTrustCenterStatus(
     id: "human_approval_requirement",
     label: "Human Approval Requirement",
     status: "enforced",
-    description: "AI recommendations never auto-execute. All outbound actions require human sign-off.",
-    detail: "Policy engine default action: deny; approvals remain in Fireblocks console",
+    description: "AI recommendations do not auto-execute. Outbound transfers require Fireblocks console approval.",
+    detail:
+      "Policy engine package exists but is not wired to the API request path (planned). Drafts are prepare-only.",
   };
 
-  const noTraining: TrustControl = {
+  const llmDataUse: TrustControl = {
     id: "no_training_on_customer_data",
-    label: "No Training on Customer Data",
+    label: "LLM Provider Data Use",
     status: "enforced",
     description: config.AI_NO_TRAINING_STATEMENT,
     detail: usesExternalLlm
-      ? `Enterprise ${provider} API — data not used for model training per provider enterprise terms`
-      : "Grounded synthesis runs locally — no external model training path",
+      ? `${provider} API — review provider data-use terms for prompt retention and training`
+      : "Local evidence formatting — no external model API call",
   };
 
   const auditTrail: TrustControl = {
     id: "audit_trail",
     label: "Audit Trail",
     status: "active",
-    description: "Append-only audit log captures prompts, evidence retrieval, AI responses, and workflows.",
-    detail: "Events: ai_prompt, ai_response, evidence_retrieved, workflow_executed, escalation_prepared",
+    description: "Append-only audit events for prompts, evidence retrieval, AI responses, and workflows.",
+    detail: config.AUDIT_STORE === "postgres"
+      ? "Postgres append-only audit_events — immutable trigger blocks UPDATE/DELETE"
+      : "In-memory store (AUDIT_STORE=memory — non-production test fallback)",
   };
 
   const controls = [
@@ -83,7 +88,7 @@ export function buildTrustCenterStatus(
     rbac,
     executionBoundary,
     humanApproval,
-    noTraining,
+    llmDataUse,
     auditTrail,
   ];
 
@@ -95,7 +100,7 @@ export function buildTrustCenterStatus(
     rbac_enforcement: rbac,
     fireblocks_execution_boundary: executionBoundary,
     human_approval_requirement: humanApproval,
-    no_training_statement: noTraining,
+    no_training_statement: llmDataUse,
     audit_trail: auditTrail,
     controls,
     data_mode: dataMode,

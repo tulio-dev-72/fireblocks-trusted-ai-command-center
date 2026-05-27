@@ -1,0 +1,49 @@
+# Render Blueprint — API service
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: taicc-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        value: "3001"
+      - key: DEMO_MODE
+        value: "false"
+      - key: REAL_FIREBLOCKS
+        value: "true"
+      - key: HYBRID_MODE
+        value: "false"
+      - key: AUDIT_STORE
+        value: postgres
+      - key: AUDIT_BOOTSTRAP_SCHEMA
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FIREBLOCKS_API_KEY
+        sync: false
+      - key: FIREBLOCKS_PRIVATE_KEY
+        sync: false
+      - key: FIREBLOCKS_BASE_PATH
+        value: https://sandbox-api.fireblocks.io/v1
+      - key: API_CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_FRONTEND_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: auto
+      - key: REDIS_URL
+        sync: false

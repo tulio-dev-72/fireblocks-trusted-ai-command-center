@@ -3,12 +3,23 @@
  * and audit archival jobs via Redis queue.
  */
 import { loadConfig } from "@taicc/config";
-import { AuditLogger, InMemoryAuditStore } from "@taicc/audit";
+import { createAuditLogger } from "@taicc/audit";
 import { createLogger, generateCorrelationId } from "@taicc/observability";
 
 const config = loadConfig();
 const logger = createLogger("worker", config.LOG_LEVEL);
-const auditLogger = new AuditLogger(new InMemoryAuditStore());
+
+let auditLogger!: import("@taicc/audit").AuditLogger;
+
+async function bootstrapWorker(): Promise<() => Promise<void>> {
+  const auditHandle = await createAuditLogger({
+    databaseUrl: config.DATABASE_URL,
+    store: config.AUDIT_STORE,
+    bootstrap: config.AUDIT_BOOTSTRAP_SCHEMA,
+  });
+  auditLogger = auditHandle.logger;
+  return auditHandle.shutdown;
+}
 
 interface Job {
   id: string;
@@ -82,13 +93,29 @@ async function poll(): Promise<void> {
 
 const POLL_INTERVAL_MS = 5000;
 
-setInterval(() => {
-  poll().catch((err) => logger.error("Poll error", { error: String(err) }));
-}, POLL_INTERVAL_MS);
+async function main(): Promise<void> {
+  const shutdownAudit = await bootstrapWorker();
 
-logger.info("Worker started", {
-  concurrency: config.WORKER_CONCURRENCY,
-  redisUrl: config.REDIS_URL,
+  setInterval(() => {
+    poll().catch((err) => logger.error("Poll error", { error: String(err) }));
+  }, POLL_INTERVAL_MS);
+
+  logger.info("Worker started", {
+    concurrency: config.WORKER_CONCURRENCY,
+    redisUrl: config.REDIS_URL,
+    auditStore: config.AUDIT_STORE,
+  });
+
+  process.on("SIGINT", () => {
+    shutdownAudit().finally(() => process.exit(0));
+  });
+}
+
+main().catch((error) => {
+  logger.error("Worker failed to start", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  process.exit(1);
 });
 
 export { enqueue };

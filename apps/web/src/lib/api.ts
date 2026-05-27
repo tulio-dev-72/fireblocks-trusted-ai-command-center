@@ -1,7 +1,16 @@
+import type { AuthHeaders } from "./auth";
+
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-export const AUTH_HEADERS = {
-  Authorization: "Bearer dev-token",
+function resolveAuthToken(): string {
+  const configured = import.meta.env.VITE_API_TOKEN?.trim();
+  if (configured) return configured;
+  if (import.meta.env.DEV) return "dev-token";
+  return "";
+}
+
+export const AUTH_HEADERS: AuthHeaders = {
+  Authorization: `Bearer ${resolveAuthToken()}`,
   "Content-Type": "application/json",
 };
 

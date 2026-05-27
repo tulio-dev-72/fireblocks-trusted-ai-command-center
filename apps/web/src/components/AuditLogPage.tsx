@@ -27,12 +27,13 @@ export function AuditLogPage({ correlationFilter }: { correlationFilter?: string
     <div className="audit-page">
       <section className="panel">
         <div className="panel-header">
-          <h2>Immutable Audit Trail</h2>
-          <span className="meta-chip">Append-only</span>
+          <h2>Audit Log</h2>
+          <span className="meta-chip">Postgres append-only</span>
         </div>
         <p className="panel-desc">
-          Every AI prompt, evidence retrieval, RBAC check, workflow execution, and escalation
-          preparation is recorded with correlation IDs.
+          Immutable event log persisted to Postgres. Records include AI prompts and responses,
+          evidence retrieval, RBAC evaluations, Fireblocks API calls, workflow execution, and
+          escalation preparation — each with a correlation ID.
         </p>
         <div className="audit-filter">
           <input

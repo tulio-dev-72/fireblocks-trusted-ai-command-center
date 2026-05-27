@@ -22,12 +22,12 @@ export interface LlmProviderConfig {
 }
 
 const SYSTEM_PROMPT = [
-  "You are a treasury operations analyst for an enterprise Fireblocks command center.",
+  "You are assisting with treasury operations analysis for a Fireblocks command center.",
   "Answer ONLY using the provided evidence context. Cite evidence IDs in brackets like [ev-txs].",
   "Never invent transaction IDs, amounts, or statuses.",
   "If evidence is insufficient, say so explicitly.",
   "Do not recommend executing transactions — only investigation and escalation steps.",
-  "Customer data must not be used for model training (enterprise policy).",
+  "Provider API calls are not used for model training per configured provider terms.",
 ].join(" ");
 
 export function resolveLlmConfig(config: EnvConfig): LlmProviderConfig {
@@ -190,8 +190,8 @@ function synthesizeFromEvidence(
   const intro =
     request.question.toLowerCase().includes("delay") ||
     request.question.toLowerCase().includes("payment")
-      ? "Based on live Fireblocks sandbox evidence, here is the operational assessment of delayed payments:"
-      : "Based on retrieved Fireblocks evidence:";
+      ? "From retrieved Fireblocks records, delayed-payment summary:"
+      : "From retrieved Fireblocks records:";
 
   const body = lines.length > 0 ? lines.join(" ") : "No qualifying evidence was available.";
   const citationNote =
@@ -199,7 +199,7 @@ function synthesizeFromEvidence(
       ? ` Sources: ${request.citations.map((c) => `[${c.evidence_id}] ${c.label}`).join("; ")}.`
       : "";
 
-  const answer = `${intro} ${body}${citationNote} All conclusions are traceable to Fireblocks records retrieved at investigation time — no synthetic data was used.`;
+  const answer = `${intro} ${body}${citationNote}`;
   return {
     answer,
     summary: intro,

@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { loadConfig, getCorsOrigins, resolveDataMode } from "@taicc/config";
+import { loadConfig, getCorsOrigins, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
 import { AuthService, extractBearerToken, AuthError, type Permission } from "@taicc/auth";
-import { AuditLogger, InMemoryAuditStore } from "@taicc/audit";
+import { AuditLogger, createAuditLogger } from "@taicc/audit";
 import { createFireblocksClient } from "@taicc/fireblocks-client";
 import { createDataService } from "@taicc/data-layer";
 import {
@@ -12,12 +12,14 @@ import {
 } from "@taicc/trusted-ai";
 import { createLogger, generateCorrelationId } from "@taicc/observability";
 import type { Actor, ProvenanceRecord } from "@taicc/shared-types";
+import { SYSTEM_ACTOR_ID } from "@taicc/shared-types";
 import {
   TreasuryAnalysisRequestSchema,
   AiAskRequestSchema,
   DelayedPaymentsInvestigationRequestSchema,
   EscalationSummaryRequestSchema,
 } from "@taicc/shared-types";
+import { isDisabledExecutionRoute, EXECUTION_DISABLED_MESSAGE } from "./execution-boundary.js";
 
 const config = loadConfig();
 const logger = createLogger("api", config.LOG_LEVEL);
@@ -29,35 +31,51 @@ const authService = new AuthService({
   audience: config.JWT_AUDIENCE,
 });
 
-const auditLogger = new AuditLogger(new InMemoryAuditStore());
+let auditLogger!: AuditLogger;
+let auditStoreKind = "postgres";
+let dataService!: ReturnType<typeof createDataService>;
+let evidencePipeline!: ReturnType<typeof createEvidencePipeline>;
+let delayedPaymentsWorkflow!: ReturnType<typeof createDelayedPaymentsWorkflow>;
 
-const fireblocksClient = createFireblocksClient(
-  {
-    apiKey: config.FIREBLOCKS_API_KEY ?? "",
-    secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
-    basePath: config.FIREBLOCKS_BASE_PATH,
-    workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
-  },
-  auditLogger,
-);
-
-const dataService = createDataService(config, fireblocksClient);
-const evidencePipeline = createEvidencePipeline(dataService, auditLogger, config);
-const delayedPaymentsWorkflow = createDelayedPaymentsWorkflow(
-  dataService,
-  auditLogger,
-  config,
-);
-
-try {
-  dataService.assertReady();
-} catch (error) {
-  logger.error("Fireblocks startup validation failed", {
-    error: error instanceof Error ? error.message : String(error),
+async function bootstrap(): Promise<() => Promise<void>> {
+  const auditHandle = await createAuditLogger({
+    databaseUrl: config.DATABASE_URL,
+    store: config.AUDIT_STORE,
+    bootstrap: config.AUDIT_BOOTSTRAP_SCHEMA,
   });
-  if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
-    throw error;
+  auditLogger = auditHandle.logger;
+  auditStoreKind = auditHandle.storeKind;
+
+  const fireblocksClient = createFireblocksClient(
+    buildFireblocksClientOptions(config),
+    auditLogger,
+  );
+
+  dataService = createDataService(config, fireblocksClient);
+  evidencePipeline = createEvidencePipeline(dataService, auditLogger, config);
+  delayedPaymentsWorkflow = createDelayedPaymentsWorkflow(
+    dataService,
+    auditLogger,
+    config,
+  );
+
+  try {
+    dataService.assertReady();
+  } catch (error) {
+    logger.error("Fireblocks startup validation failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (config.NODE_ENV === "production" || (config.REAL_FIREBLOCKS && !config.DEMO_MODE)) {
+      throw error;
+    }
   }
+
+  logger.info("Audit store initialized", {
+    store: auditStoreKind,
+    databaseUrl: config.DATABASE_URL.replace(/:[^:@/]+@/, ":***@"),
+  });
+
+  return auditHandle.shutdown;
 }
 
 interface RequestContext {
@@ -115,11 +133,17 @@ async function handleRequest(
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
     const path = url.pathname;
 
+    if (isDisabledExecutionRoute(req.method ?? "GET", path)) {
+      json(res, 403, errorBody("EXECUTION_DISABLED", EXECUTION_DISABLED_MESSAGE, correlationId));
+      return;
+    }
+
     if (path === "/health") {
       json(res, 200, {
         status: "ok",
         service: "api",
         data_mode: dataMode,
+        audit_store: auditStoreKind,
       });
       return;
     }
@@ -127,9 +151,63 @@ async function handleRequest(
     if (path === "/health/fireblocks" && req.method === "GET") {
       const health = await dataService
         .getConnectionVerification()
-        .getHealth({ correlationId, actorId: "system" });
+        .getHealth({ correlationId, actorId: SYSTEM_ACTOR_ID });
       const statusCode = health.status === "ok" ? 200 : health.status === "degraded" ? 503 : 503;
       json(res, statusCode, health);
+      return;
+    }
+
+    if (path === "/v1/fireblocks/connection" && req.method === "GET") {
+      const health = await dataService
+        .getConnectionVerification()
+        .getHealth({ correlationId, actorId: SYSTEM_ACTOR_ID });
+      const statusCode = health.status === "ok" ? 200 : 503;
+      json(res, statusCode, health);
+      return;
+    }
+
+    if (path === "/health/ready" && req.method === "GET") {
+      const checks: Record<string, string> = { api: "ok", audit_store: auditStoreKind };
+      let ready = true;
+
+      if (auditStoreKind === "postgres") {
+        try {
+          await auditLogger.query({ limit: 1 });
+          checks.postgres = "ok";
+        } catch (error) {
+          ready = false;
+          checks.postgres = error instanceof Error ? error.message : "unavailable";
+        }
+      }
+
+      if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
+        const fbHealth = await dataService
+          .getConnectionVerification()
+          .getHealth({ correlationId, actorId: SYSTEM_ACTOR_ID });
+        checks.fireblocks = fbHealth.status;
+        if (fbHealth.status !== "ok") ready = false;
+      }
+
+      json(res, ready ? 200 : 503, {
+        status: ready ? "ready" : "not_ready",
+        checks,
+        data_mode: dataMode,
+        audit_store: auditStoreKind,
+      });
+      return;
+    }
+
+    if (path === "/v1/status" && req.method === "GET") {
+      const status = await buildSystemIntegrationStatus(
+        config,
+        dataService,
+        correlationId,
+      );
+      const allCritical =
+        status.fireblocks.connected &&
+        status.data_mode === "real" &&
+        !status.demo_mode;
+      json(res, allCritical ? 200 : 503, status);
       return;
     }
 
@@ -216,7 +294,7 @@ async function handleRequest(
     }
 
     if (path === "/v1/workflows/delayed-payments/escalation-summary" && req.method === "POST") {
-      await requirePermission(ctx.actor, "operations:write", correlationId);
+      await requirePermission(ctx.actor, "operations:read", correlationId);
       const body = JSON.parse(await readBody(req));
       const parsed = EscalationSummaryRequestSchema.parse(body);
       const summary = await delayedPaymentsWorkflow.prepareEscalationSummary(
@@ -290,22 +368,6 @@ async function handleRequest(
       const id = path.split("/").pop()!;
       const result = await dataService.getTransaction(id, fbCtx(ctx));
       json(res, result.available ? 200 : 503, wrapResponse(result));
-      return;
-    }
-
-    if (path === "/v1/transactions/draft" && req.method === "POST") {
-      await requirePermission(ctx.actor, "operations:write", correlationId);
-      const body = JSON.parse(await readBody(req)) as Record<string, string>;
-      json(res, 200, wrapResponse(dataService.prepareTransactionDraft(
-        {
-          assetId: body.assetId,
-          amount: body.amount,
-          sourceVaultId: body.sourceVaultId,
-          destinationVaultId: body.destinationVaultId,
-          note: body.note,
-        },
-        fbCtx(ctx),
-      )));
       return;
     }
 
@@ -472,29 +534,54 @@ const server = createServer((req, res) => {
   handleRequest(req, res).catch((err) => handleError(res, err, generateCorrelationId()));
 });
 
-server.listen(config.API_PORT, config.API_HOST, async () => {
-  logger.info("API gateway started", {
-    host: config.API_HOST,
-    port: config.API_PORT,
-    dataMode,
-    fireblocksBase: config.FIREBLOCKS_BASE_PATH,
-    transactionExecution: "disabled",
+async function main(): Promise<void> {
+  const shutdownAudit = await bootstrap();
+
+  const shutdown = async () => {
+    await shutdownAudit();
+  };
+  process.on("SIGINT", () => {
+    shutdown().finally(() => process.exit(0));
+  });
+  process.on("SIGTERM", () => {
+    shutdown().finally(() => process.exit(0));
   });
 
-  if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
-    const health = await dataService
-      .getConnectionVerification()
-      .getHealth({ correlationId: generateCorrelationId(), actorId: "system" });
-    if (health.status === "ok") {
-      logger.info("Fireblocks sandbox connected", {
-        latencyMs: health.api_latency_ms,
-        sandbox: health.sandbox_mode,
-      });
-    } else {
-      logger.error("Fireblocks sandbox connection failed at startup", {
-        error: health.error,
-        checks: health.credential_checks,
-      });
+  server.listen(config.API_PORT, config.API_HOST, async () => {
+    logger.info("API gateway started", {
+      host: config.API_HOST,
+      port: config.API_PORT,
+      dataMode,
+      auditStore: auditStoreKind,
+      fireblocksBase: config.FIREBLOCKS_BASE_PATH,
+      transactionExecution: "disabled",
+    });
+
+    if (config.REAL_FIREBLOCKS && !config.DEMO_MODE) {
+      const health = await dataService
+        .getConnectionVerification()
+        .getHealth({ correlationId: generateCorrelationId(), actorId: SYSTEM_ACTOR_ID });
+      if (health.status === "ok") {
+        logger.info("Fireblocks sandbox connected", {
+          latencyMs: health.api_latency_ms,
+          sandbox: health.sandbox_mode,
+        });
+      } else {
+        logger.error("Fireblocks sandbox connection failed at startup", {
+          error: health.error,
+          checks: health.credential_checks,
+        });
+        if (config.NODE_ENV === "production") {
+          process.exit(1);
+        }
+      }
     }
-  }
+  });
+}
+
+main().catch((error) => {
+  logger.error("API failed to start", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  process.exit(1);
 });

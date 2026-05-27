@@ -30,15 +30,22 @@ loadEnvFile(resolve(rootDir, ".env"));
 loadEnvFile(resolve(rootDir, ".env.local"), true);
 process.chdir(rootDir);
 
-const { loadConfig, resolveDataMode } = await import("../packages/config/dist/index.js");
-const { AuditLogger, InMemoryAuditStore } = await import("../packages/audit/dist/index.js");
+const { loadConfig, resolveDataMode, buildFireblocksClientOptions } = await import("../packages/config/dist/index.js");
+const { createAuditLogger, verifyAuditPersistence } = await import("../packages/audit/dist/index.js");
 const { createFireblocksClient } = await import("../packages/fireblocks-client/dist/index.js");
 const { createConnectionVerificationService } = await import("../packages/fireblocks-client/dist/index.js");
 const { resolveLlmConfig, generateGroundedAnswer } = await import("../packages/trusted-ai/dist/llm-provider.js");
+const { generateCorrelationId } = await import("../packages/observability/dist/index.js");
+const { SYSTEM_ACTOR_ID } = await import("../packages/shared-types/dist/index.js");
 
 const config = loadConfig();
 const mode = resolveDataMode(config);
-const auditLogger = new AuditLogger(new InMemoryAuditStore());
+const auditHandle = await createAuditLogger({
+  databaseUrl: config.DATABASE_URL,
+  store: config.AUDIT_STORE,
+  bootstrap: config.AUDIT_BOOTSTRAP_SCHEMA,
+});
+const auditLogger = auditHandle.logger;
 
 const results = [];
 
@@ -60,23 +67,30 @@ if (mode !== "real") {
   pass("data_mode", "REAL_FIREBLOCKS active — demo seed disabled");
 }
 
+// Audit persistence (Postgres append-only)
+try {
+  const auditCheck = await verifyAuditPersistence(
+    auditLogger,
+    "00000000-0000-4000-8000-000000000099",
+  );
+  if (auditCheck.ok) {
+    pass(`audit.${config.AUDIT_STORE}`, auditCheck.detail);
+  } else {
+    fail(`audit.${config.AUDIT_STORE}`, auditCheck.detail);
+  }
+} catch (error) {
+  fail(`audit.${config.AUDIT_STORE}`, error instanceof Error ? error.message : String(error));
+}
+
 // Fireblocks
 try {
   const client = createFireblocksClient(
-    {
-      apiKey: config.FIREBLOCKS_API_KEY ?? "",
-      secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
-      basePath: config.FIREBLOCKS_BASE_PATH,
-      workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
-    },
+    buildFireblocksClientOptions(config),
     auditLogger,
   );
   const verification = createConnectionVerificationService(
     {
-      apiKey: config.FIREBLOCKS_API_KEY ?? "",
-      secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
-      basePath: config.FIREBLOCKS_BASE_PATH,
-      workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
+      ...buildFireblocksClientOptions(config),
       dataMode: mode,
       realFireblocks: config.REAL_FIREBLOCKS,
       demoMode: config.DEMO_MODE,
@@ -84,20 +98,57 @@ try {
     },
     client,
   );
+  const verifyCorrelationId = generateCorrelationId();
   const status = await verification.verifyConnection({
-    correlationId: "verify-connectivity",
-    actorId: "system",
+    correlationId: verifyCorrelationId,
+    actorId: SYSTEM_ACTOR_ID,
     workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
   });
-  if (status.connected && status.sandbox_mode) {
-    pass(
-      "fireblocks",
-      `Connected to sandbox (${status.api_latency_ms ?? "?"}ms) — ${status.reachable_endpoints?.length ?? 0} endpoints reachable`,
-    );
+
+  for (const check of status.credential_checks ?? []) {
+    if (check.valid) {
+      pass(`fireblocks.${check.check}`, check.message);
+    } else {
+      fail(`fireblocks.${check.check}`, check.message);
+    }
+  }
+
+  if (!status.connected || !status.sandbox_mode) {
+    fail("fireblocks.connection", status.error ?? "Not connected to Fireblocks sandbox");
   } else {
-    fail("fireblocks", status.error ?? status.message ?? "Not connected");
-    for (const check of status.credential_checks ?? []) {
-      if (!check.valid) fail(`fireblocks.${check.check}`, check.message);
+    pass(
+      "fireblocks.connection",
+      `Sandbox connected (${status.api_latency_ms ?? "?"}ms) — ${status.reachable_endpoints?.length ?? 0} endpoints reachable`,
+    );
+  }
+
+  if (status.connected) {
+    const { createDataService } = await import("../packages/data-layer/dist/index.js");
+    const dataService = createDataService(config, client);
+    const ctx = { correlationId: verifyCorrelationId, actorId: SYSTEM_ACTOR_ID };
+
+    const [vaults, balances, txs] = await Promise.all([
+      dataService.listVaultAccounts(ctx),
+      dataService.listBalances(ctx),
+      dataService.listTransactions(ctx),
+    ]);
+
+    if (vaults.available && vaults.provenance.source_type === "REAL_FIREBLOCKS") {
+      pass("fireblocks.vault_accounts", `${vaults.data?.length ?? 0} vault account(s) retrieved`);
+    } else {
+      fail("fireblocks.vault_accounts", vaults.unavailable_reason ?? "Vault retrieval failed");
+    }
+
+    if (balances.available && balances.provenance.source_type === "REAL_FIREBLOCKS") {
+      pass("fireblocks.balances", `${balances.data?.length ?? 0} balance line(s) retrieved`);
+    } else {
+      fail("fireblocks.balances", balances.unavailable_reason ?? "Balance retrieval failed");
+    }
+
+    if (txs.available && txs.provenance.source_type === "REAL_FIREBLOCKS") {
+      pass("fireblocks.transactions", `${txs.data?.length ?? 0} transaction(s) retrieved`);
+    } else {
+      fail("fireblocks.transactions", txs.unavailable_reason ?? "Transaction retrieval failed");
     }
   }
 } catch (error) {
@@ -179,4 +230,5 @@ try {
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+await auditHandle.shutdown();
 process.exit(failed.length > 0 ? 1 : 0);

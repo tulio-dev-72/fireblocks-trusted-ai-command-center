@@ -1,6 +1,7 @@
 import type { EnvConfig } from "@taicc/config";
 import {
   resolveDataMode,
+  buildFireblocksClientOptions,
 } from "@taicc/config";
 import {
   createConnectionVerificationService,
@@ -36,10 +37,7 @@ export class DataService {
     this.hybrid = new HybridAdapter(this.real);
     this.connectionVerification = createConnectionVerificationService(
       {
-        apiKey: config.FIREBLOCKS_API_KEY ?? "",
-        secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
-        basePath: config.FIREBLOCKS_BASE_PATH,
-        workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
+        ...buildFireblocksClientOptions(config),
         dataMode: this.mode,
         realFireblocks: config.REAL_FIREBLOCKS,
         demoMode: config.DEMO_MODE,
@@ -79,7 +77,7 @@ export class DataService {
       return {
         data: null,
         available: false,
-        unavailable_reason: "Only REAL_FIREBLOCKS data permitted for AI answers",
+        unavailable_reason: "Only REAL_FIREBLOCKS data permitted for LLM context",
         provenance: record.provenance,
       };
     }
@@ -94,6 +92,16 @@ export class DataService {
       provenance: record.provenance,
       available: record.available,
     };
+  }
+
+  /** Applies AI eligibility filter (real-mode + REAL_FIREBLOCKS provenance) before evidence packaging. */
+  toAiEvidence<T>(
+    label: string,
+    record: ProvenanceRecord<T>,
+    id: string,
+  ): { item: EvidenceItem; filtered: ProvenanceRecord<T> } {
+    const filtered = this.filterForAi(record);
+    return { item: this.toEvidence(label, filtered, id), filtered };
   }
 
   async checkConnection(ctx: FireblocksCallContext): Promise<FireblocksConnectionStatus> {

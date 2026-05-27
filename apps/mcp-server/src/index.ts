@@ -1,29 +1,37 @@
 /**
  * MCP Server — read-only Fireblocks data tools via data layer.
- * Transaction execution is disabled; draft preparation only.
+ * Transaction execution, signing, and draft preparation are disabled.
  */
 import { createInterface } from "node:readline";
-import { loadConfig, resolveDataMode } from "@taicc/config";
-import { AuditLogger, InMemoryAuditStore } from "@taicc/audit";
+import { loadConfig, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
+import { AuditLogger, createAuditLogger } from "@taicc/audit";
 import { createFireblocksClient } from "@taicc/fireblocks-client";
 import { createDataService } from "@taicc/data-layer";
 import { createLogger, generateCorrelationId } from "@taicc/observability";
+import { MCP_CLIENT_ACTOR_ID } from "@taicc/shared-types";
 
 const config = loadConfig();
 const logger = createLogger("mcp-server", config.LOG_LEVEL);
 const dataMode = resolveDataMode(config);
 
-const auditLogger = new AuditLogger(new InMemoryAuditStore());
-const fireblocksClient = createFireblocksClient(
-  {
-    apiKey: config.FIREBLOCKS_API_KEY ?? "",
-    secretKeyPath: config.FIREBLOCKS_SECRET_KEY_PATH,
-    basePath: config.FIREBLOCKS_BASE_PATH,
-    workspaceId: config.FIREBLOCKS_WORKSPACE_ID,
-  },
-  auditLogger,
-);
-const dataService = createDataService(config, fireblocksClient);
+let auditLogger!: AuditLogger;
+let dataService!: ReturnType<typeof createDataService>;
+
+async function bootstrapMcp(): Promise<() => Promise<void>> {
+  const auditHandle = await createAuditLogger({
+    databaseUrl: config.DATABASE_URL,
+    store: config.AUDIT_STORE,
+    bootstrap: config.AUDIT_BOOTSTRAP_SCHEMA,
+  });
+  auditLogger = auditHandle.logger;
+
+  const fireblocksClient = createFireblocksClient(
+    buildFireblocksClientOptions(config),
+    auditLogger,
+  );
+  dataService = createDataService(config, fireblocksClient);
+  return auditHandle.shutdown;
+}
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -77,21 +85,6 @@ const READ_ONLY_TOOLS = [
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "prepare_transaction_draft",
-    description: "Prepare a transaction draft locally (NOT submitted to Fireblocks)",
-    inputSchema: {
-      type: "object",
-      properties: {
-        assetId: { type: "string" },
-        amount: { type: "string" },
-        sourceVaultId: { type: "string" },
-        destinationVaultId: { type: "string" },
-        note: { type: "string" },
-      },
-      required: ["assetId", "amount", "sourceVaultId", "destinationVaultId"],
-    },
-  },
-  {
     name: "get_connection_status",
     description: "Check Fireblocks API connection status and reachable endpoints",
     inputSchema: { type: "object", properties: {} },
@@ -103,7 +96,7 @@ async function handleToolCall(
   args: Record<string, unknown>,
   correlationId: string,
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
-  const ctx = { correlationId, actorId: "mcp-client" };
+  const ctx = { correlationId, actorId: MCP_CLIENT_ACTOR_ID };
 
   let result: unknown;
 
@@ -128,18 +121,6 @@ async function handleToolCall(
       break;
     case "list_activity_logs":
       result = await dataService.listActivityLogs(ctx);
-      break;
-    case "prepare_transaction_draft":
-      result = dataService.prepareTransactionDraft(
-        {
-          assetId: args.assetId as string,
-          amount: args.amount as string,
-          sourceVaultId: args.sourceVaultId as string,
-          destinationVaultId: args.destinationVaultId as string,
-          note: args.note as string | undefined,
-        },
-        ctx,
-      );
       break;
     case "get_connection_status":
       result = await dataService.checkConnection(ctx);
@@ -220,20 +201,36 @@ async function handleRequest(request: JsonRpcRequest): Promise<unknown> {
 
 const rl = createInterface({ input: process.stdin, terminal: false });
 
-rl.on("line", async (line) => {
-  try {
-    const request = JSON.parse(line) as JsonRpcRequest;
-    const response = await handleRequest(request);
-    process.stdout.write(JSON.stringify(response) + "\n");
-  } catch (error) {
-    logger.error("MCP request error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
+async function main(): Promise<void> {
+  const shutdownAudit = await bootstrapMcp();
 
-logger.info("MCP server started (read-only)", {
-  name: config.MCP_SERVER_NAME,
-  dataMode,
-  tools: READ_ONLY_TOOLS.map((t) => t.name),
+  rl.on("line", async (line) => {
+    try {
+      const request = JSON.parse(line) as JsonRpcRequest;
+      const response = await handleRequest(request);
+      process.stdout.write(JSON.stringify(response) + "\n");
+    } catch (error) {
+      logger.error("MCP request error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  logger.info("MCP server started (read-only)", {
+    name: config.MCP_SERVER_NAME,
+    dataMode,
+    auditStore: config.AUDIT_STORE,
+    tools: READ_ONLY_TOOLS.map((t) => t.name),
+  });
+
+  process.on("SIGINT", () => {
+    shutdownAudit().finally(() => process.exit(0));
+  });
+}
+
+main().catch((error) => {
+  logger.error("MCP server failed to start", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  process.exit(1);
 });

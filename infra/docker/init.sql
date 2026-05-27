@@ -16,6 +16,19 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE INDEX IF NOT EXISTS idx_audit_correlation ON audit_events(correlation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_events(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_events(event_type);
+
+CREATE OR REPLACE FUNCTION prevent_audit_events_mutation()
+RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_events is append-only: UPDATE and DELETE are forbidden';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS audit_events_immutable ON audit_events;
+CREATE TRIGGER audit_events_immutable
+  BEFORE UPDATE OR DELETE ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION prevent_audit_events_mutation();
 
 CREATE TABLE IF NOT EXISTS policy_rules (
   id UUID PRIMARY KEY,

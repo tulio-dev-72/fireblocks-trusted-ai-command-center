@@ -5,9 +5,11 @@ import type {
 } from "@taicc/shared-types";
 import { apiPost } from "../lib/api";
 import { ProvenanceBadge } from "./ProvenanceBadge";
+import { InvestigationDelayChart } from "./InvestigationDelayChart";
 import { WorkflowStepper } from "./WorkflowStepper";
 
-const DEFAULT_QUESTION = "Why are these payments delayed?";
+const DEFAULT_QUESTION =
+  "Which non-final transactions are delayed, and what Fireblocks status or approval state is blocking settlement?";
 
 const REASON_COLORS: Record<string, string> = {
   approval_pending: "reason-approval",
@@ -72,7 +74,7 @@ export function DelayedPaymentsInvestigator({
     }
   }
 
-  const steps = ["Ask", "Analysis", "Evidence", "Recommendation"];
+  const steps = ["Intake", "Analysis", "Evidence", "Recommendation"];
 
   return (
     <div className="investigator">
@@ -80,12 +82,17 @@ export function DelayedPaymentsInvestigator({
 
       {step === 0 && (
         <section className="panel investigator-ask">
-          <div className="workflow-tag">Delayed Payments Investigator</div>
-          <h2>Why are these payments delayed?</h2>
+          <div className="workflow-tag">Workflow · Delayed Payments Investigator</div>
+          <h2>Investigate delayed treasury payments</h2>
           <p className="panel-desc">
-            Retrieves live Fireblocks transactions, classifies root causes, builds an evidence
-            bundle, and returns a cited AI explanation. Read-only — no execution.
+            Retrieves live Fireblocks transactions, approvals, balances, and policy records.
+            Classifies root causes, builds an evidence bundle, and returns a cited operational
+            analysis. Read-only — no transaction execution.
           </p>
+          <div className="execution-boundary">
+            Execution boundary enforced: AI may investigate and recommend only. All transfers
+            require human approval in the Fireblocks console.
+          </div>
           <div className="treasury-input">
             <input
               type="text"
@@ -128,6 +135,8 @@ export function DelayedPaymentsInvestigator({
                 <p className="empty">No delayed payments detected in sandbox.</p>
               )}
             </div>
+
+            <InvestigationDelayChart groups={result.delay_groups} />
 
             <div className="analysis-stats">
               <span>{result.delayed_payment_count} delayed</span>
@@ -177,7 +186,7 @@ export function DelayedPaymentsInvestigator({
             <>
               <section className="panel ai-answer-panel">
                 <div className="panel-header">
-                  <h2>AI Explanation</h2>
+                  <h2>Operational Analysis</h2>
                   <div className="ai-meta">
                     <span className="meta-chip">{result.model_provider}</span>
                     {result.prompt_logged && <span className="meta-chip">Prompt logged</span>}
