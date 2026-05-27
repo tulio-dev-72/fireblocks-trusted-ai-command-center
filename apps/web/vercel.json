@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "cd ../.. && corepack enable pnpm && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm turbo run build --filter=@taicc/web",
+  "installCommand": "cd ../.. && corepack enable pnpm && pnpm install --frozen-lockfile --filter @taicc/web...",
+  "buildCommand": "cd ../.. && NODE_OPTIONS=--max-old-space-size=3072 pnpm run build:web",
   "outputDirectory": "dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

@@ -16,6 +16,7 @@
     "verify": "node scripts/verify-connectivity.mjs",
     "fireblocks:test-auth": "node scripts/fireblocks-test-auth.mjs",
     "fireblocks:seed-sandbox": "node scripts/fireblocks-seed-sandbox.mjs",
+    "build:web": "pnpm --filter @taicc/shared-types build && pnpm --filter @taicc/web build:vercel",
     "deploy:render": "node scripts/deploy-render-api.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },

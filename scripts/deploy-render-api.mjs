@@ -87,74 +87,6 @@ if (!redisUrl?.startsWith("rediss://") && !process.env.UPSTASH_REDIS_URL) {
   }
 }
 
-let jwtSecret = process.env.JWT_SECRET?.trim();
-if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes("change-me")) {
-  jwtSecret = randomBytes(32).toString("hex");
-  ok(`Generated JWT_SECRET (${jwtSecret.length} chars) — persist in .env.local and Render`);
-} else {
-  ok(`Using JWT_SECRET from env (${jwtSecret.length} chars)`);
-}
-
-let apiViewerToken = process.env.API_VIEWER_TOKEN?.trim();
-if (!apiViewerToken || apiViewerToken.length < 32) {
-  apiViewerToken = randomBytes(32).toString("hex");
-  ok(`Generated API_VIEWER_TOKEN — set VITE_API_TOKEN on Vercel to this value`);
-} else {
-  ok(`Using API_VIEWER_TOKEN from env (${apiViewerToken.length} chars)`);
-}
-
-let sandboxAdminToken = process.env.SANDBOX_ADMIN_TOKEN?.trim();
-if (!sandboxAdminToken || sandboxAdminToken.length < 32) {
-  sandboxAdminToken = randomBytes(32).toString("hex");
-  ok(`Generated SANDBOX_ADMIN_TOKEN — use for sandbox activity UI/CLI (not VITE_API_TOKEN)`);
-} else {
-  ok(`Using SANDBOX_ADMIN_TOKEN from env (${sandboxAdminToken.length} chars)`);
-}
-
-let fireblocksPrivateKey = process.env.FIREBLOCKS_PRIVATE_KEY?.trim();
-const keyPath = process.env.FIREBLOCKS_SECRET_KEY_PATH?.trim() ?? "./fireblocks_secret.key";
-const resolvedKeyPath = resolve(root, keyPath);
-if (!fireblocksPrivateKey && existsSync(resolvedKeyPath)) {
-  fireblocksPrivateKey = readFileSync(resolvedKeyPath, "utf8").trim();
-}
-if (!fireblocksPrivateKey?.includes("PRIVATE KEY")) {
-  fail("FIREBLOCKS_PRIVATE_KEY or fireblocks_secret.key required");
-}
-
-const fireblocksApiKey = process.env.FIREBLOCKS_API_KEY?.trim();
-if (!fireblocksApiKey) fail("FIREBLOCKS_API_KEY required in .env.local");
-
-const openAiKey = process.env.OPENAI_API_KEY?.trim();
-const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
-if (!openAiKey && !anthropicKey) {
-  fail("At least one of OPENAI_API_KEY or ANTHROPIC_API_KEY required");
-}
-
-const envVars = [
-  { key: "NODE_ENV", value: "production" },
-  { key: "API_HOST", value: "0.0.0.0" },
-  { key: "DEMO_MODE", value: "false" },
-  { key: "REAL_FIREBLOCKS", value: "true" },
-  { key: "HYBRID_MODE", value: "false" },
-  { key: "AUDIT_STORE", value: "postgres" },
-  { key: "AUDIT_BOOTSTRAP_SCHEMA", value: "true" },
-  { key: "DATABASE_URL", value: databaseUrl },
-  { key: "JWT_SECRET", value: jwtSecret },
-  { key: "API_VIEWER_TOKEN", value: apiViewerToken },
-  { key: "SANDBOX_ADMIN_TOKEN", value: sandboxAdminToken },
-  { key: "FIREBLOCKS_API_KEY", value: fireblocksApiKey },
-  { key: "FIREBLOCKS_PRIVATE_KEY", value: fireblocksPrivateKey },
-  {
-    key: "FIREBLOCKS_BASE_PATH",
-    value: process.env.FIREBLOCKS_BASE_PATH ?? "https://sandbox-api.fireblocks.io/v1",
-  },
-  { key: "PUBLIC_FRONTEND_URL", value: PUBLIC_FRONTEND_URL.replace(/\/$/, "") },
-  { key: "REDIS_URL", value: redisUrl },
-  { key: "AI_PROVIDER", value: process.env.AI_PROVIDER ?? "auto" },
-];
-if (openAiKey) envVars.push({ key: "OPENAI_API_KEY", value: openAiKey });
-if (anthropicKey) envVars.push({ key: "ANTHROPIC_API_KEY", value: anthropicKey });
-
 async function renderFetch(path, options = {}) {
   const res = await fetch(`https://api.render.com/v1${path}`, {
     ...options,
@@ -178,6 +110,113 @@ async function renderFetch(path, options = {}) {
   return body;
 }
 
+async function readRenderEnvVar(serviceId, key) {
+  try {
+    const rows = await renderFetch(`/services/${serviceId}/env-vars?limit=100`);
+    const match = rows?.find?.((row) => row.envVar?.key === key)?.envVar?.value;
+    return typeof match === "string" ? match.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveDeploySecrets(serviceId) {
+  let jwtSecret = process.env.JWT_SECRET?.trim();
+  if (!jwtSecret || jwtSecret.length < 32 || jwtSecret.includes("change-me")) {
+    const existing = serviceId ? await readRenderEnvVar(serviceId, "JWT_SECRET") : null;
+    if (existing && existing.length >= 32) {
+      jwtSecret = existing;
+      ok(`Using JWT_SECRET from Render (${jwtSecret.length} chars)`);
+    } else {
+      jwtSecret = randomBytes(32).toString("hex");
+      ok(`Generated JWT_SECRET (${jwtSecret.length} chars) — persist in .env.local and Render`);
+    }
+  } else {
+    ok(`Using JWT_SECRET from env (${jwtSecret.length} chars)`);
+  }
+
+  let apiViewerToken = process.env.API_VIEWER_TOKEN?.trim();
+  if (!apiViewerToken || apiViewerToken.length < 32) {
+    const existing = serviceId ? await readRenderEnvVar(serviceId, "API_VIEWER_TOKEN") : null;
+    if (existing && existing.length >= 32) {
+      apiViewerToken = existing;
+      ok(`Using API_VIEWER_TOKEN from Render (${apiViewerToken.length} chars)`);
+    } else {
+      apiViewerToken = randomBytes(32).toString("hex");
+      ok(`Generated API_VIEWER_TOKEN — set VITE_API_TOKEN on Vercel to this value`);
+    }
+  } else {
+    ok(`Using API_VIEWER_TOKEN from env (${apiViewerToken.length} chars)`);
+  }
+
+  let sandboxAdminToken = process.env.SANDBOX_ADMIN_TOKEN?.trim();
+  if (!sandboxAdminToken || sandboxAdminToken.length < 32) {
+    const existing = serviceId ? await readRenderEnvVar(serviceId, "SANDBOX_ADMIN_TOKEN") : null;
+    if (existing && existing.length >= 32) {
+      sandboxAdminToken = existing;
+      ok(`Using SANDBOX_ADMIN_TOKEN from Render (${sandboxAdminToken.length} chars)`);
+    } else {
+      sandboxAdminToken = randomBytes(32).toString("hex");
+      ok(`Generated SANDBOX_ADMIN_TOKEN — use for sandbox activity UI/CLI (not VITE_API_TOKEN)`);
+    }
+  } else {
+    ok(`Using SANDBOX_ADMIN_TOKEN from env (${sandboxAdminToken.length} chars)`);
+  }
+
+  return { jwtSecret, apiViewerToken, sandboxAdminToken };
+}
+
+function loadFireblocksPrivateKey() {
+  let fireblocksPrivateKey = process.env.FIREBLOCKS_PRIVATE_KEY?.trim();
+  const keyPath = process.env.FIREBLOCKS_SECRET_KEY_PATH?.trim() ?? "./fireblocks_secret.key";
+  const resolvedKeyPath = resolve(root, keyPath);
+  if (!fireblocksPrivateKey && existsSync(resolvedKeyPath)) {
+    fireblocksPrivateKey = readFileSync(resolvedKeyPath, "utf8").trim();
+  }
+  if (!fireblocksPrivateKey?.includes("PRIVATE KEY")) {
+    fail("FIREBLOCKS_PRIVATE_KEY or fireblocks_secret.key required");
+  }
+  return fireblocksPrivateKey;
+}
+
+function buildEnvVars(secrets) {
+  const fireblocksPrivateKey = loadFireblocksPrivateKey();
+  const fireblocksApiKey = process.env.FIREBLOCKS_API_KEY?.trim();
+  if (!fireblocksApiKey) fail("FIREBLOCKS_API_KEY required in .env.local");
+
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!openAiKey && !anthropicKey) {
+    fail("At least one of OPENAI_API_KEY or ANTHROPIC_API_KEY required");
+  }
+
+  const envVars = [
+    { key: "NODE_ENV", value: "production" },
+    { key: "API_HOST", value: "0.0.0.0" },
+    { key: "DEMO_MODE", value: "false" },
+    { key: "REAL_FIREBLOCKS", value: "true" },
+    { key: "HYBRID_MODE", value: "false" },
+    { key: "AUDIT_STORE", value: "postgres" },
+    { key: "AUDIT_BOOTSTRAP_SCHEMA", value: "true" },
+    { key: "DATABASE_URL", value: databaseUrl },
+    { key: "JWT_SECRET", value: secrets.jwtSecret },
+    { key: "API_VIEWER_TOKEN", value: secrets.apiViewerToken },
+    { key: "SANDBOX_ADMIN_TOKEN", value: secrets.sandboxAdminToken },
+    { key: "FIREBLOCKS_API_KEY", value: fireblocksApiKey },
+    { key: "FIREBLOCKS_PRIVATE_KEY", value: fireblocksPrivateKey },
+    {
+      key: "FIREBLOCKS_BASE_PATH",
+      value: process.env.FIREBLOCKS_BASE_PATH ?? "https://sandbox-api.fireblocks.io/v1",
+    },
+    { key: "PUBLIC_FRONTEND_URL", value: PUBLIC_FRONTEND_URL.replace(/\/$/, "") },
+    { key: "REDIS_URL", value: redisUrl },
+    { key: "AI_PROVIDER", value: process.env.AI_PROVIDER ?? "auto" },
+  ];
+  if (openAiKey) envVars.push({ key: "OPENAI_API_KEY", value: openAiKey });
+  if (anthropicKey) envVars.push({ key: "ANTHROPIC_API_KEY", value: anthropicKey });
+  return envVars;
+}
+
 async function main() {
   ok("Render API key found");
 
@@ -190,6 +229,10 @@ async function main() {
 
   const services = await renderFetch(`/services?limit=100&name=${SERVICE_NAME}`);
   let service = services?.find?.((s) => s.service?.name === SERVICE_NAME)?.service;
+
+  const secrets = await resolveDeploySecrets(service?.id);
+  const envVars = buildEnvVars(secrets);
+  const { apiViewerToken, sandboxAdminToken } = secrets;
 
   if (!service) {
     ok(`Creating Docker web service "${SERVICE_NAME}"…`);
