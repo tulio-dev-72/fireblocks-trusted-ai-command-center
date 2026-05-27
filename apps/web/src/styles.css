@@ -209,6 +209,47 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.sandbox-instructions {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sandbox-instructions h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.instruction-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.instruction-steps li {
+  margin-bottom: 0.625rem;
+}
+
+.instruction-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.field-hint {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.transfer-hint {
+  margin: 0 0 0.25rem;
+  grid-column: 1 / -1;
+}
+
 .sandbox-activity-form {
   margin-top: 1rem;
   display: flex;

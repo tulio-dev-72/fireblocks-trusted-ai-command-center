@@ -146,19 +146,6 @@ export function SandboxDataReadinessPage() {
         </section>
       ) : null}
 
-      <section className="panel">
-        <h2>Create Sandbox Test Activity (read-only guidance)</h2>
-        <p className="panel-desc">
-          Use the Fireblocks sandbox console to generate real records. This application retrieves and
-          analyzes data only — it does not execute transactions from AI workflows.
-        </p>
-        <ul className="guidance-list">
-          {(readiness?.sandbox_activity_guidance ?? []).map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </section>
-
       <SandboxActivityGeneratorPanel />
     </div>
   );

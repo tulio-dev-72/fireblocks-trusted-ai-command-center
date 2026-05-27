@@ -114,6 +114,40 @@ export function SandboxActivityGeneratorPanel() {
         <StatusRow label="AI execution" value="Blocked" ok />
       </div>
 
+      {capabilities?.can_generate && (
+        <div className="sandbox-instructions">
+          <h3>How to use</h3>
+          <ol className="instruction-steps">
+            <li>
+              <strong>Choose an action</strong> — For your first run, keep{" "}
+              <em>Create test vault account</em> checked and leave transfer unchecked.
+            </li>
+            <li>
+              <strong>Optional vault name</strong> — Leave blank to auto-name (e.g.{" "}
+              <code className="mono">TAICC Sandbox Activity …</code>).
+            </li>
+            <li>
+              <strong>Optional transfer</strong> — Check{" "}
+              <em>Submit vault-to-vault test transfer</em> only if source vault has sandbox test
+              funds. Use vault IDs from Fireblocks (often <code className="mono">0</code> and{" "}
+              <code className="mono">1</code>). Asset: <code className="mono">ETH_TEST5</code>.
+            </li>
+            <li>
+              <strong>Confirm you are human</strong> — Required. AI workflows cannot run this panel.
+            </li>
+            <li>
+              <strong>Click Generate</strong> — Activity is written to Fireblocks sandbox and logged
+              as <code className="mono">REAL_FIREBLOCKS_SANDBOX</code> in{" "}
+              <code className="mono">audit_events</code>.
+            </li>
+            <li>
+              <strong>Refresh metrics</strong> — Counts at the top of this page update within ~30s,
+              or reload the page.
+            </li>
+          </ol>
+        </div>
+      )}
+
       <div className="sandbox-activity-form">
         <label className="checkbox-row">
           <input
@@ -123,6 +157,7 @@ export function SandboxActivityGeneratorPanel() {
             disabled={!capabilities?.can_generate || running}
           />
           Create test vault account
+          <span className="field-hint"> — Adds a new vault in Fireblocks sandbox</span>
         </label>
         {createVault && (
           <input
@@ -142,9 +177,13 @@ export function SandboxActivityGeneratorPanel() {
             disabled={!capabilities?.can_generate || running}
           />
           Submit vault-to-vault test transfer
+          <span className="field-hint"> — Sandbox only; source and destination must differ</span>
         </label>
         {enableTransfer && (
           <div className="transfer-fields">
+            <p className="field-hint transfer-hint">
+              Source vault must hold the asset (fund via Fireblocks sandbox faucet if needed).
+            </p>
             <input className="text-input" placeholder="Source vault ID" value={sourceVaultId} onChange={(e) => setSourceVaultId(e.target.value)} disabled={running} />
             <input className="text-input" placeholder="Destination vault ID" value={destinationVaultId} onChange={(e) => setDestinationVaultId(e.target.value)} disabled={running} />
             <input className="text-input" placeholder="Asset ID" value={assetId} onChange={(e) => setAssetId(e.target.value)} disabled={running} />
@@ -166,10 +205,20 @@ export function SandboxActivityGeneratorPanel() {
           type="button"
           className="primary-btn"
           onClick={handleGenerate}
-          disabled={!capabilities?.can_generate || running || !confirmed}
+          disabled={
+            !capabilities?.can_generate ||
+            running ||
+            !confirmed ||
+            (!createVault && !enableTransfer) ||
+            (enableTransfer &&
+              (!sourceVaultId.trim() || !destinationVaultId.trim() || !assetId.trim() || !amount.trim()))
+          }
         >
           {running ? "Generating…" : "Generate Sandbox Activity"}
         </button>
+        {!createVault && !enableTransfer && capabilities?.can_generate && (
+          <p className="field-hint">Select at least one action above.</p>
+        )}
       </div>
 
       {result?.steps?.length ? (
@@ -197,9 +246,8 @@ export function SandboxActivityGeneratorPanel() {
       ) : null}
 
       <p className="provenance-note">
-        Prefer automation? Run <code className="mono">pnpm fireblocks:seed-sandbox</code> from the
-        project root with sandbox credentials. CLI activity is also logged to{" "}
-        <code className="mono">audit_events</code>.
+        CLI alternative: <code className="mono">pnpm fireblocks:seed-sandbox</code> from the project
+        root (creates vault + transfer + snapshot). All activity is audit-logged.
       </p>
     </section>
   );
