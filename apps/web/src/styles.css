@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Schibsted+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap');
 
 :root {
   --bg: #14120d;
@@ -25,7 +25,7 @@
 }
 
 body {
-  font-family: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background:
     radial-gradient(140% 100% at 82% -8%, rgba(231,178,76,0.06), transparent 46%),
     radial-gradient(120% 90% at 10% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 42%),
@@ -35,8 +35,8 @@ body {
   line-height: 1.5;
 }
 
-h1, h2, h3, .header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; letter-spacing: -0.2px; }
-.mono, code, .addr, .value, .metric, .num { font-family: "JetBrains Mono", ui-monospace, monospace; font-feature-settings: "tnum" 1; }
+h1, h2, h3, .header h1 { font-family: "Bricolage Grotesque", ui-sans-serif, sans-serif; font-weight: 500; letter-spacing: -0.2px; }
+.mono, code, .addr, .value, .metric, .num { font-family: "Spline Sans Mono", ui-monospace, monospace; font-feature-settings: "tnum" 1; }
 
 .app {
   min-height: 100vh;
@@ -155,7 +155,7 @@ h1, h2, h3, .header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 5
 }
 
 .mono {
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-family: "Spline Sans Mono", ui-monospace, "SF Mono", monospace;
   font-size: 0.8125rem;
 }
 
@@ -916,9 +916,9 @@ h1, h2, h3, .header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 5
     radial-gradient(120% 90% at 10% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 42%),
     var(--bg);
 }
-h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Fraunces",Georgia,serif;font-weight:500;letter-spacing:-0.2px;}
-.section-eyebrow,.nav-section-label,.stat-label,.meta-chip,.table th{font-family:"JetBrains Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:1.2px;font-size:0.6875rem;}
-.stat-value,.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-feature-settings:"tnum" 1;}
+h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Bricolage Grotesque",ui-sans-serif,sans-serif;font-weight:500;letter-spacing:-0.2px;}
+.section-eyebrow,.nav-section-label,.stat-label,.meta-chip,.table th{font-family:"Spline Sans Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:1.2px;font-size:0.6875rem;}
+.stat-value,.mono{font-family:"Spline Sans Mono",ui-monospace,monospace;font-feature-settings:"tnum" 1;}
 .section-eyebrow{color:var(--accent);}
 .section-eyebrow::before,.nav-section-label::before{content:"\203A  ";color:var(--accent);}
 .stat-card,.panel,.sandbox-instructions,.confirm-row{border:1px solid var(--border);border-radius:14px;background:var(--surface);box-shadow:0 1px 2px rgba(24,39,75,0.04);}
@@ -927,7 +927,7 @@ h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Fraunces",G
 .badge,.meta-chip,.severity-badge,.usage-pill,.workspace-status,.mode-pill,
 .provenance-real,.provenance-demo,.provenance-customer,.provenance-market,.provenance-ai{
   display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:0.2rem 0.7rem;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:0.6875rem;letter-spacing:0.4px;
+  font-family:"Spline Sans Mono",ui-monospace,monospace;font-size:0.6875rem;letter-spacing:0.4px;
   text-transform:uppercase;font-weight:500;border:1px solid var(--border);
   background:var(--surface-2);color:var(--text-muted);}
 .badge-completed,.badge-success,.mode-real,.provenance-real,.usage-pill.ok,.workspace-status.status-completed{background:var(--ok-bg);color:var(--ok-fg);border-color:transparent;}
@@ -948,3 +948,21 @@ h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Fraunces",G
 .theme-toggle:hover{color:var(--accent);border-color:var(--accent);}
 .theme-toggle svg{width:16px;height:16px;}
 .topbar-meta{display:flex;align-items:center;gap:0.6rem;}
+
+/* ---- refinement: match Ops Console type scale + fix light-mode dark patches ---- */
+.page-title{font-size:20px;font-weight:600;letter-spacing:-0.3px;line-height:1.05;}
+.section-eyebrow{color:var(--text-muted);font-weight:500;letter-spacing:1.4px;}
+.section-eyebrow::before{content:"\203A ";color:var(--accent);}
+.nav-section-label{font-weight:500;letter-spacing:1.4px;}
+.nav-section-label::before{content:none;}
+.summary-value,.stat-value{font-family:"Bricolage Grotesque",ui-sans-serif,sans-serif;font-size:28px;font-weight:600;letter-spacing:-0.6px;line-height:1;}
+.summary-label,.stat-label{font-family:"Spline Sans Mono",ui-monospace,monospace;font-size:10px;letter-spacing:0.9px;text-transform:uppercase;color:var(--text-muted);}
+.summary-stat{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:1.1rem 1.3rem;}
+.sidebar-link:hover{background:var(--surface);color:var(--text);}
+.investigator-cta-panel{background:linear-gradient(135deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);box-shadow:0 1px 2px rgba(24,39,75,0.04);}
+.arch-note{background:var(--surface);}
+.mode-option.selected{background:var(--surface-2);}
+.workflow-step.current{background:var(--iris-bg);}
+.planned-tag{background:var(--warn-bg);color:var(--warn-fg);}
+.planned-section{border-color:var(--warn-bd);}
+.execution-phase-list li.done{background:var(--ok-bg);border-color:var(--ok-bd);}
