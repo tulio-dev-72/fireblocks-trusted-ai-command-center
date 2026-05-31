@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Page } from "../lib/navigation";
 import { NAV_ITEMS } from "../lib/navigation";
 import { PAGE_SUBTITLES } from "../lib/page-meta";
+import ThemeToggle from "./ThemeToggle";
 
 interface ShellProps {
   page: Page;
@@ -59,6 +60,7 @@ export function Shell({ page, onNavigate, dataMode, children }: ShellProps) {
             <p className="page-subtitle">{PAGE_SUBTITLES[page]}</p>
           </div>
           <div className="topbar-meta">
+            <ThemeToggle />
             <span className="meta-chip">Read-only</span>
             <span className="meta-chip">No tx execution</span>
           </div>
