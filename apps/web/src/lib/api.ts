@@ -104,7 +104,7 @@ export async function apiPostSandboxAdmin<T>(path: string, body: unknown): Promi
 
 /** Fireblocks auth diagnostics — works without platform JWT via health endpoint */
 export async function fetchFireblocksAuthDiagnostics() {
-  const res = await fetch(`${API_URL}/health/fireblocks/auth-diagnostics`, {
+  const res = await fetch(`${API_URL}/v1/fireblocks/auth-diagnostics`, {
     headers: buildAuthHeaders(),
   });
   const text = await res.text();

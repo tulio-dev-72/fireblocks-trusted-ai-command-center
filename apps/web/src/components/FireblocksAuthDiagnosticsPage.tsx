@@ -49,7 +49,7 @@ export function FireblocksAuthDiagnosticsPage() {
         <h2>Fireblocks Auth Diagnostics</h2>
         <p className="panel-desc">
           Validates RS256 JWT signing against Fireblocks sandbox. Endpoint:{" "}
-          <code>{API_URL}/health/fireblocks/auth-diagnostics</code>
+          <code>{API_URL}/v1/fireblocks/auth-diagnostics</code>
         </p>
         {!test?.ok && (
           <div className="error-banner">
