@@ -108,7 +108,7 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
       {loadError && <div className="error-banner">{loadError}</div>}
 
       <section className="home-hero">
-        <span className="section-eyebrow">Operational Intelligence Command Center</span>
+        <span className="section-eyebrow">Built on Fireblocks</span>
         <h2 className="treasury-title">Operational Intelligence Command Center</h2>
         <p className="treasury-lead">
           Evidence-backed operational intelligence built on top of Fireblocks infrastructure.

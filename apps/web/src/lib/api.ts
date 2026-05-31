@@ -107,6 +107,21 @@ export async function fetchFireblocksAuthDiagnostics() {
   const res = await fetch(`${API_URL}/health/fireblocks/auth-diagnostics`, {
     headers: buildAuthHeaders(),
   });
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+  const text = await res.text();
+  if (!text) {
+    return {
+      ok: false,
+      status: res.status,
+      data: { auth_test: { ok: false, error: `Diagnostics backend returned an empty response (HTTP ${res.status}). The API may be unconfigured, asleep, or its deployed build predates this route.` } },
+    };
+  }
+  try {
+    return { ok: res.ok, status: res.status, data: JSON.parse(text) };
+  } catch {
+    return {
+      ok: false,
+      status: res.status,
+      data: { auth_test: { ok: false, error: `Diagnostics backend returned a non-JSON response (HTTP ${res.status}).` } },
+    };
+  }
 }
