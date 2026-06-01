@@ -17,13 +17,18 @@ export function Shell({ page, onNavigate, dataMode, children }: ShellProps) {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">
+        <button
+          type="button"
+          className="sidebar-brand"
+          onClick={() => onNavigate("home")}
+          aria-label="Go to Treasury Operations"
+        >
           <span className="brand-mark">OI</span>
           <div>
             <strong>Operational Intelligence</strong>
             <span>Command Center</span>
           </div>
-        </div>
+        </button>
 
         <nav className="sidebar-nav">
           {sections.map((section) => (

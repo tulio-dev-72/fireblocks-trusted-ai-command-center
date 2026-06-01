@@ -560,7 +560,10 @@ h1, h2, h3, .header h1 { font-family: "Bricolage Grotesque", ui-sans-serif, sans
 
 .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
 .sidebar { background: #100e0a; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem 0; }
-.sidebar-brand { display: flex; align-items: center; gap: 0.75rem; padding: 0 1.25rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.sidebar-brand { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0 1.25rem 1.5rem; border: none; border-bottom: 1px solid var(--border); margin-bottom: 1rem; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; border-radius: 0; transition: opacity 0.15s ease; }
+.sidebar-brand:hover { opacity: 0.8; }
+.sidebar-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sidebar-brand strong { color: var(--text); }
 .brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 6px; background: #2c2747; color: var(--accent); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
 .hero-panel { display: block; margin-bottom: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem 2rem; }
 
