@@ -19,10 +19,11 @@ export function UsageAnalyticsPage() {
     <div className="usage-page">
       <section className="panel">
         <span className="section-eyebrow">Observability</span>
-        <h2>Usage / Analytics</h2>
+        <h2>Observability</h2>
         <p className="panel-desc">
-          Production traffic, Web Vitals, and product events are collected through Vercel. This page
-          shows integration status and a privacy-safe session log — no API keys, secrets, or
+          Instrumentation for the app itself — not Fireblocks treasury data. Web vitals and product
+          events are collected via the analytics provider (Vercel). This page shows integration
+          status, deployment build info, and a privacy-safe session log — no API keys, secrets, or
           transaction payloads are ever sent.
         </p>
       </section>

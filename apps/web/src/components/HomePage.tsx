@@ -18,12 +18,29 @@ import { OperationalCharts } from "./OperationalCharts";
 import { SystemStatusPanel } from "./SystemStatusPanel";
 import { InvestigationPromptCards } from "./InvestigationPromptCards";
 import { OperationalReadinessCard } from "./OperationalReadinessCard";
+import { InfoHint } from "./InfoHint";
 
 interface ApiRecord<T> {
   data?: T;
   available: boolean;
   unavailable_reason?: string;
 }
+
+/**
+ * Transactions that are genuinely stuck and need operator attention —
+ * awaiting approval/signature, held by policy/AML screening, or failed.
+ * Deliberately excludes normal in-flight states (SUBMITTED, QUEUED,
+ * BROADCASTING, CONFIRMING) so this count means "blocked", not "in flight".
+ */
+const BLOCKED_STATUSES = new Set([
+  "PENDING_AUTHORIZATION",
+  "PENDING_SIGNATURE",
+  "PENDING_3RD_PARTY",
+  "PENDING_3RD_PARTY_MANUAL_APPROVAL",
+  "PENDING_AML_SCREENING",
+  "PENDING_ENRICHMENT",
+  "FAILED",
+]);
 
 interface HomePageProps {
   onStartInvestigation: (prompt?: string) => void;
@@ -77,7 +94,7 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
         setNonFinalCount(nonFinal.length);
 
         const delayGroups = buildDelayRootCauses(transactions, balances);
-        setDelayedCount(delayGroups.reduce((sum, g) => sum + g.value, 0));
+        setDelayedCount(transactions.filter((t) => BLOCKED_STATUSES.has(t.status)).length);
 
         setPendingApprovalCount(
           approvals.filter(
@@ -128,15 +145,35 @@ export function HomePage({ onStartInvestigation, onNavigate }: HomePageProps) {
         <div className="operational-summary">
           <div className="summary-stat">
             <span className="summary-value">{loading ? "—" : nonFinalCount}</span>
-            <span className="summary-label">Non-final transfers</span>
+            <span className="summary-label">
+              Non-final transfers
+              <InfoHint title="Non-final transfers">
+                Live Fireblocks transactions that have not reached a terminal state — anything that
+                is not COMPLETED, CANCELLED, REJECTED, or BLOCKED. Includes transfers that are still
+                confirming on-chain normally.
+              </InfoHint>
+            </span>
           </div>
           <div className="summary-stat">
             <span className="summary-value">{loading ? "—" : delayedCount}</span>
-            <span className="summary-label">Delayed / blocked</span>
+            <span className="summary-label">
+              Delayed / blocked
+              <InfoHint title="Delayed / blocked">
+                The subset of non-final transfers that are genuinely stuck — awaiting
+                approval/signature, held by policy or AML screening, or failed. Excludes transfers
+                that are simply submitted, queued, or confirming normally.
+              </InfoHint>
+            </span>
           </div>
           <div className="summary-stat">
             <span className="summary-value">{loading ? "—" : pendingApprovalCount}</span>
-            <span className="summary-label">Pending authorization</span>
+            <span className="summary-label">
+              Pending authorization
+              <InfoHint title="Pending authorization" align="left">
+                Items in the Fireblocks approval workflow queue awaiting signer or approver action.
+                Sourced from the approvals API — separate from individual transaction status.
+              </InfoHint>
+            </span>
           </div>
         </div>
       </section>

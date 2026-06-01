@@ -1092,3 +1092,130 @@ h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Bricolage G
   text-decoration: none;
 }
 .trust-link:hover { border-color: var(--accent); }
+
+/* ── Investigation mode legibility ────────────────────────── */
+.mode-focus-note {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: var(--iris-bg);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+.mode-focus-note strong { color: var(--iris-fg); }
+
+.mode-focus-callout {
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.mode-focus-callout .mode-focus-tag {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-family: "Spline Sans Mono", ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.mode-focus-callout p { margin: 0; font-size: 0.8125rem; line-height: 1.55; color: var(--text-muted); }
+
+.workspace-timeline-caption {
+  margin: -0.25rem 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--faint);
+  line-height: 1.5;
+}
+
+/* ── Info hint (hover/focus definition tooltip) ───────────── */
+.info-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+.info-hint-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--faint);
+  cursor: help;
+  transition: color 0.15s ease;
+}
+.info-hint-trigger:hover,
+.info-hint-trigger:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+.info-hint-icon { display: block; width: 14px; height: 14px; }
+
+.info-hint-bubble {
+  position: absolute;
+  z-index: 60;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 260px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+/* Arrow */
+.info-hint-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--surface);
+}
+.info-hint:hover .info-hint-bubble,
+.info-hint:focus-within .info-hint-bubble {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Left/right aligned variants for edge tiles */
+.info-hint-left .info-hint-bubble { left: auto; right: -8px; transform: translateY(4px); }
+.info-hint-left .info-hint-bubble::after { left: auto; right: 12px; transform: none; }
+.info-hint-left:hover .info-hint-bubble,
+.info-hint-left:focus-within .info-hint-bubble { transform: translateY(0); }
+.info-hint-right .info-hint-bubble { left: -8px; transform: translateY(4px); }
+.info-hint-right .info-hint-bubble::after { left: 12px; transform: none; }
+.info-hint-right:hover .info-hint-bubble,
+.info-hint-right:focus-within .info-hint-bubble { transform: translateY(0); }
+
+.info-hint-title {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.info-hint-body {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-muted);
+}

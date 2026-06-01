@@ -64,8 +64,10 @@ export function FireblocksAuthDiagnosticsPage() {
       <section className="panel">
         <h2>Platform API Auth (separate from Fireblocks JWT)</h2>
         <p className="provenance-note">
-          UI errors like &quot;Malformed JWT&quot; usually mean <code>VITE_API_TOKEN</code> is missing
-          or invalid — not Fireblocks signing.
+          UI errors like &quot;Malformed JWT&quot; or &quot;Missing bearer token&quot; come from the
+          platform API token — <code>VITE_API_TOKEN</code> (Vercel) must match{" "}
+          <code>API_VIEWER_TOKEN</code> (Render). This is separate from Fireblocks RS256 signing.
+          Detected bearer format: <code>{appAuth?.bearer_format ?? "—"}</code>.
         </p>
         <div className="connection-grid">
           <StatusRow

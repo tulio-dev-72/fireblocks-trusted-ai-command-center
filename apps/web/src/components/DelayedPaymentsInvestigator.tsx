@@ -3,17 +3,10 @@ import type { EscalationSummaryResponse, InvestigationMode } from "@taicc/shared
 import { apiPost } from "../lib/api";
 import { trackProductEvent } from "../lib/analytics";
 import { useInvestigationStream } from "../hooks/useInvestigationStream";
+import { INVESTIGATION_MODES, investigationModeFocus } from "../lib/investigation-modes";
 import { InvestigationWorkspace } from "./InvestigationWorkspace";
 
 const DEFAULT_QUESTION = "Why are these treasury payments delayed?";
-
-const INVESTIGATION_MODES: { value: InvestigationMode; label: string; hint: string }[] = [
-  { value: "operations", label: "Operations", hint: "Day-to-day treasury ops focus" },
-  { value: "treasury", label: "Treasury", hint: "Liquidity and settlement lens" },
-  { value: "risk", label: "Risk", hint: "Exposure and control emphasis" },
-  { value: "compliance", label: "Compliance", hint: "Policy and audit trail focus" },
-  { value: "executive", label: "Executive", hint: "Concise impact summary" },
-];
 
 interface Props {
   initialQuestion?: string;
@@ -136,6 +129,11 @@ export function DelayedPaymentsInvestigator({
               </label>
             ))}
           </div>
+          <p className="mode-focus-note">
+            <strong>Analyst lens:</strong> {investigationModeFocus(mode)} The same live Fireblocks
+            evidence is retrieved for every mode — the lens changes how the model prioritizes and
+            frames the analysis.
+          </p>
         </div>
 
         <div className="treasury-input">

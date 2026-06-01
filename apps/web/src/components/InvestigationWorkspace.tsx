@@ -9,6 +9,11 @@ import type {
 } from "@taicc/shared-types";
 import { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
+import {
+  investigationModeFocus,
+  MODE_LABELS,
+  modelProviderLabel,
+} from "../lib/investigation-modes";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { InvestigationDelayChart } from "./InvestigationDelayChart";
 import { InvestigationEvidencePanel } from "./InvestigationEvidencePanel";
@@ -19,14 +24,6 @@ const REASON_COLORS: Record<string, string> = {
   insufficient_balance: "reason-balance",
   failed_transfer: "reason-failed",
   network_delay: "reason-network",
-};
-
-const MODE_LABELS: Record<InvestigationMode, string> = {
-  treasury: "Treasury",
-  risk: "Risk",
-  compliance: "Compliance",
-  operations: "Operations",
-  executive: "Executive",
 };
 
 interface Props {
@@ -126,12 +123,15 @@ export function InvestigationWorkspace({
       <div className="workspace-grid">
         <aside className="workspace-column workspace-timeline panel">
           <div className="panel-header">
-            <h3>Orchestration Log</h3>
+            <h3>Orchestration Timeline</h3>
             <span className="meta-chip">{timeline.length} events</span>
             {webhookEventCount > 0 && (
               <span className="meta-chip">{webhookEventCount} webhooks</span>
             )}
           </div>
+          <p className="workspace-timeline-caption">
+            Streamed from the append-only audit log as each step is recorded.
+          </p>
           {timeline.length === 0 ? (
             <p className="empty workspace-waiting">
               {running ? "Waiting for audit events…" : "No timeline events recorded."}
@@ -268,6 +268,10 @@ export function InvestigationWorkspace({
 
         <aside className="workspace-column workspace-meta panel">
           <h3>Investigation Context</h3>
+          <div className="mode-focus-callout">
+            <span className="mode-focus-tag">{MODE_LABELS[mode]} lens</span>
+            <p>{investigationModeFocus(mode)}</p>
+          </div>
           <dl className="workspace-meta-dl">
             <dt>Mode</dt>
             <dd>{MODE_LABELS[mode]}</dd>
@@ -306,7 +310,7 @@ export function InvestigationWorkspace({
                   {(analysis?.confidence ?? "medium").toUpperCase()}
                 </dd>
                 <dt>Model</dt>
-                <dd>{result.model_provider}</dd>
+                <dd>{modelProviderLabel(result.model_provider)}</dd>
                 <dt>Delayed</dt>
                 <dd>{result.delayed_payment_count}</dd>
                 <dt>Pending approval</dt>
