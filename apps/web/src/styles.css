@@ -966,3 +966,129 @@ h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Bricolage G
 .planned-tag{background:var(--warn-bg);color:var(--warn-fg);}
 .planned-section{border-color:var(--warn-bd);}
 .execution-phase-list li.done{background:var(--ok-bg);border-color:var(--ok-bd);}
+
+/* ── Trust Center ─────────────────────────────────────────── */
+.trust-center { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Model summary tiles (fixes label/value collision) */
+.trust-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.trust-model-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.trust-model-tile .trust-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.trust-model-tile strong {
+  font-size: 0.95rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* Control tiles */
+.trust-grid { gap: 1rem; }
+.trust-control-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.trust-control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.trust-control-header h3 { margin: 0; font-size: 0.9rem; }
+.trust-control-card p { margin: 0; font-size: 0.8125rem; line-height: 1.55; color: var(--text-muted); }
+.trust-control-card .trust-detail { font-size: 0.75rem; color: var(--faint); }
+
+/* Status pills */
+.trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2, var(--surface));
+  color: var(--text-muted);
+  font-family: "Spline Sans Mono", ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.trust-pill.enforced, .trust-pill.active { background: var(--ok-bg); color: var(--ok-fg); border-color: transparent; }
+.trust-pill.warning { background: var(--warn-bg); color: var(--warn-fg); border-color: transparent; }
+.trust-pill.disabled { background: var(--surface-2, var(--surface)); color: var(--text-muted); }
+
+/* Data-flow explainer */
+.trust-flow { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.trust-flow-step { display: flex; gap: 0.75rem; align-items: flex-start; }
+.trust-flow-num {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--iris-bg);
+  color: var(--iris-fg);
+  font-family: "Spline Sans Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.trust-flow-step strong { display: block; font-size: 0.875rem; color: var(--text); margin-bottom: 0.15rem; }
+.trust-flow-step p { margin: 0; font-size: 0.8125rem; line-height: 1.55; color: var(--text-muted); }
+.trust-flow-step .mono { color: var(--text); }
+
+.trust-answer {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.trust-answer strong { color: var(--text); }
+.trust-answer.external { background: var(--warn-bg); border-color: transparent; color: var(--warn-fg); }
+.trust-answer.external strong { color: var(--warn-fg); }
+.trust-answer.local { background: var(--ok-bg); border-color: transparent; color: var(--ok-fg); }
+.trust-answer.local strong { color: var(--ok-fg); }
+
+/* Provider data-use links */
+.trust-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+.trust-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.trust-link:hover { border-color: var(--accent); }
