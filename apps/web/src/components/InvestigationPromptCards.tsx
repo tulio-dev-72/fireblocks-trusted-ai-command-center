@@ -1,4 +1,5 @@
-import { OPERATIONAL_INVESTIGATION_PROMPTS } from "../lib/investigation-prompts";
+import { OPERATIONAL_INVESTIGATION_PROMPTS, PROMPT_HINTS } from "../lib/investigation-prompts";
+import { InfoHint } from "./InfoHint";
 
 interface InvestigationPromptCardsProps {
   onSelectPrompt: (prompt: string) => void;
@@ -15,15 +16,21 @@ export function InvestigationPromptCards({ onSelectPrompt }: InvestigationPrompt
       </p>
       <div className="prompt-card-grid">
         {OPERATIONAL_INVESTIGATION_PROMPTS.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="prompt-card"
-            onClick={() => onSelectPrompt(prompt)}
-          >
-            <span className="prompt-card-label">{prompt}</span>
-            <span className="prompt-card-action">Run investigation</span>
-          </button>
+          <div key={prompt} className="prompt-card-wrap">
+            <button
+              type="button"
+              className="prompt-card"
+              onClick={() => onSelectPrompt(prompt)}
+            >
+              <span className="prompt-card-label">{prompt}</span>
+              <span className="prompt-card-action">Run investigation</span>
+            </button>
+            <span className="prompt-card-info">
+              <InfoHint title="What this investigates" align="left">
+                {PROMPT_HINTS[prompt]}
+              </InfoHint>
+            </span>
+          </div>
         ))}
       </div>
     </section>

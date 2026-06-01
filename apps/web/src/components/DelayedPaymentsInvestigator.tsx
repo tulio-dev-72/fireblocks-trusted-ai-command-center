@@ -4,6 +4,7 @@ import { apiPost } from "../lib/api";
 import { trackProductEvent } from "../lib/analytics";
 import { useInvestigationStream } from "../hooks/useInvestigationStream";
 import { INVESTIGATION_MODES, investigationModeFocus } from "../lib/investigation-modes";
+import { InfoHint } from "./InfoHint";
 import { InvestigationWorkspace } from "./InvestigationWorkspace";
 
 const DEFAULT_QUESTION = "Why are these treasury payments delayed?";
@@ -115,7 +116,7 @@ export function DelayedPaymentsInvestigator({
         <div className="investigation-mode-picker">
           <span className="mode-picker-label">Investigation mode</span>
           <div className="mode-picker-options">
-            {INVESTIGATION_MODES.map((option) => (
+            {INVESTIGATION_MODES.map((option, index) => (
               <label key={option.value} className={`mode-option ${mode === option.value ? "selected" : ""}`}>
                 <input
                   type="radio"
@@ -124,7 +125,15 @@ export function DelayedPaymentsInvestigator({
                   checked={mode === option.value}
                   onChange={() => setMode(option.value)}
                 />
-                <span className="mode-option-label">{option.label}</span>
+                <span className="mode-option-label">
+                  {option.label}
+                  <InfoHint
+                    title={`${option.label} lens`}
+                    align={index >= INVESTIGATION_MODES.length - 2 ? "left" : "top"}
+                  >
+                    {option.focus}
+                  </InfoHint>
+                </span>
                 <span className="mode-option-hint">{option.hint}</span>
               </label>
             ))}

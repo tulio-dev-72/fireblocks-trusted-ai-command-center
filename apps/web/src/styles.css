@@ -625,6 +625,11 @@ h1, h2, h3, .header h1 { font-family: "Bricolage Grotesque", ui-sans-serif, sans
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
+.prompt-card-wrap { position: relative; display: flex; }
+.prompt-card-wrap .prompt-card { width: 100%; padding-right: 2.5rem; }
+.prompt-card-info { position: absolute; top: 0.55rem; right: 0.55rem; z-index: 2; }
+.prompt-card-info .info-hint { margin-left: 0; }
+
 .prompt-card-label {
   font-size: 0.9375rem;
   font-weight: 500;
@@ -800,7 +805,7 @@ h1, h2, h3, .header h1 { font-family: "Bricolage Grotesque", ui-sans-serif, sans
 .mode-option { display: flex; flex-direction: column; gap: 0.125rem; padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg); }
 .mode-option.selected { border-color: var(--accent); background: #1b1812; }
 .mode-option input { position: absolute; opacity: 0; pointer-events: none; }
-.mode-option-label { font-size: 0.8125rem; font-weight: 600; }
+.mode-option-label { display: inline-flex; align-items: center; font-size: 0.8125rem; font-weight: 600; }
 .mode-option-hint { font-size: 0.6875rem; color: var(--text-muted); line-height: 1.4; }
 .operational-boundary-footnote { margin-top: 1rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
 @media (max-width: 1100px) {
