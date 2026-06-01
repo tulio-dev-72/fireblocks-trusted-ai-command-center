@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import type { ChartDatum, OperationalChartData } from "../lib/operational-metrics";
 import { CHART, CHART_FONT, CHART_MARGIN } from "../lib/chart-theme";
+import { InfoHint } from "./InfoHint";
 
 interface ChartPanelProps {
   title: string;
@@ -17,6 +18,16 @@ interface ChartPanelProps {
   data: ChartDatum[];
   emptyMessage: string;
   valueLabel?: string;
+  hint?: string;
+}
+
+function ChartTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <h3>
+      {title}
+      {hint ? <InfoHint title={title}>{hint}</InfoHint> : null}
+    </h3>
+  );
 }
 
 function OperationalBarChart({
@@ -25,12 +36,13 @@ function OperationalBarChart({
   data,
   emptyMessage,
   valueLabel = "Count",
+  hint,
 }: ChartPanelProps) {
   if (data.length === 0) {
     return (
       <div className="chart-panel">
         <div className="chart-panel-header">
-          <h3>{title}</h3>
+          <ChartTitle title={title} hint={hint} />
           <p className="chart-question">{question}</p>
         </div>
         <p className="chart-empty">{emptyMessage}</p>
@@ -41,7 +53,7 @@ function OperationalBarChart({
   return (
     <div className="chart-panel">
       <div className="chart-panel-header">
-        <h3>{title}</h3>
+        <ChartTitle title={title} hint={hint} />
         <p className="chart-question">{question}</p>
       </div>
       <ResponsiveContainer width="100%" height={220}>
@@ -129,18 +141,21 @@ export function OperationalCharts({ data, loading }: Props) {
           question="What is the current composition of transfer statuses?"
           data={data.settlement}
           emptyMessage="No transaction history available from Fireblocks."
+          hint="Live transfers grouped by lifecycle status (submitted, confirming, completed, failed). Shows where volume currently sits in the settlement flow."
         />
         <OperationalBarChart
           title="Delay Root Causes"
           question="What is blocking non-final payments right now?"
           data={data.delayCauses}
           emptyMessage="No delayed payments detected in the current sandbox history."
+          hint="Non-final transfers grouped by why they are stuck: approval pending, policy/AML hold, insufficient balance, failed, or network confirmation."
         />
         <OperationalBarChart
           title="Approval Queue"
           question="How many authorizations are pending vs resolved?"
           data={data.approvals}
           emptyMessage="No approval queue records available."
+          hint="Authorization workflow items (pending vs resolved) from the Fireblocks approvals API — the human sign-off step before release."
         />
         <OperationalBarChart
           title="Liquidity Concentration"
@@ -148,12 +163,14 @@ export function OperationalCharts({ data, loading }: Props) {
           data={data.liquidity}
           emptyMessage="No positive available balances returned from Fireblocks."
           valueLabel="Available"
+          hint="Available vault balances by asset — highlights where liquidity is concentrated and potential funding gaps for outbound settlements."
         />
         <OperationalBarChart
           title="Pending Transfer Age"
           question="How long have open transfers been unsettled?"
           data={data.pendingAge}
           emptyMessage="No timestamped non-final transactions to age."
+          hint="Open (non-final) transfers bucketed by how long they have been unsettled. Older buckets signal staleness and possible SLA risk."
         />
       </div>
     </section>

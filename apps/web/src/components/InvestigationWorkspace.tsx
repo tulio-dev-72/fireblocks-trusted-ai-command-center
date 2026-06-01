@@ -14,6 +14,7 @@ import {
   MODE_LABELS,
   modelProviderLabel,
 } from "../lib/investigation-modes";
+import { InfoHint } from "./InfoHint";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { InvestigationDelayChart } from "./InvestigationDelayChart";
 import { InvestigationEvidencePanel } from "./InvestigationEvidencePanel";
@@ -173,7 +174,15 @@ export function InvestigationWorkspace({
             <>
               <div className="panel-header">
                 <h3>Operational Intelligence Assessment</h3>
-                <ProvenanceBadge provenance={result.provenance} />
+                <span className="provenance-with-hint">
+                  <ProvenanceBadge provenance={result.provenance} />
+                  <InfoHint title="Data provenance" align="left">
+                    This assessment is AI-derived (DERIVED_AI), but grounded only in real Fireblocks
+                    sandbox evidence retrieved for this investigation. Source records are tagged
+                    REAL_FIREBLOCKS_SANDBOX — the model never invents transactions, amounts, or
+                    statuses.
+                  </InfoHint>
+                </span>
               </div>
 
               <p className="analysis-summary">{result.summary}</p>
@@ -299,17 +308,36 @@ export function InvestigationWorkspace({
             )}
             {result?.transparency && (
               <>
-                <dt>Severity</dt>
+                <dt>
+                  Severity
+                  <InfoHint title="Operational severity" align="left">
+                    Severity of the investigation outcome, derived from delay volume, failed
+                    transfers, and policy holds in the retrieved evidence.
+                  </InfoHint>
+                </dt>
                 <dd>{result.transparency.operational_severity.replace(/_/g, " ")}</dd>
               </>
             )}
             {result && (
               <>
-                <dt>Confidence</dt>
+                <dt>
+                  Confidence
+                  <InfoHint title="Confidence" align="left">
+                    The model&rsquo;s confidence (HIGH / MEDIUM / LOW) in this assessment given
+                    evidence completeness. Stated by the analysis — not a guarantee.
+                  </InfoHint>
+                </dt>
                 <dd className={`confidence-${analysis?.confidence ?? "medium"}`}>
                   {(analysis?.confidence ?? "medium").toUpperCase()}
                 </dd>
-                <dt>Model</dt>
+                <dt>
+                  Model
+                  <InfoHint title="Model" align="left">
+                    The provider/model that generated the narrative. &ldquo;Local synthesis&rdquo;
+                    means no external model was called — the answer is built deterministically from
+                    evidence.
+                  </InfoHint>
+                </dt>
                 <dd>{modelProviderLabel(result.model_provider)}</dd>
                 <dt>Delayed</dt>
                 <dd>{result.delayed_payment_count}</dd>
@@ -317,9 +345,21 @@ export function InvestigationWorkspace({
                 <dd>{result.pending_approval_count}</dd>
                 <dt>Evidence cards</dt>
                 <dd>{result.evidence_cards.length}</dd>
-                <dt>Prompt logged</dt>
+                <dt>
+                  Prompt logged
+                  <InfoHint title="Prompt logged" align="left">
+                    Whether the AI prompt for this run was written to the append-only audit log for
+                    traceability and governance review.
+                  </InfoHint>
+                </dt>
                 <dd>{result.prompt_logged ? "Yes" : "No"}</dd>
-                <dt>RBAC enforced</dt>
+                <dt>
+                  RBAC enforced
+                  <InfoHint title="RBAC enforced" align="left">
+                    Whether role-based access control filtered the evidence and gated this workflow
+                    before any data reached the model.
+                  </InfoHint>
+                </dt>
                 <dd>{result.rbac_enforced ? "Yes" : "No"}</dd>
               </>
             )}

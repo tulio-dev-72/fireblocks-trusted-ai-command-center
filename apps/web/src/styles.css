@@ -794,7 +794,7 @@ h1, h2, h3, .header h1 { font-family: "Bricolage Grotesque", ui-sans-serif, sans
 @keyframes workspace-spin { to { transform: rotate(360deg); } }
 .workspace-loading-note { font-size: 0.8125rem; max-width: 24rem; }
 .workspace-meta-dl { display: grid; grid-template-columns: auto 1fr; gap: 0.375rem 1rem; font-size: 0.8125rem; margin: 0 0 1rem; }
-.workspace-meta-dl dt { color: var(--text-muted); }
+.workspace-meta-dl dt { color: var(--text-muted); display: inline-flex; align-items: center; }
 .workspace-meta-dl dd { margin: 0; font-weight: 500; }
 .workspace-meta-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
 .workspace-evidence-section, .workspace-ai-section, .workspace-recommendations { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
@@ -1139,6 +1139,8 @@ h1,h2,h3,.page-title,.panel h2,.sandbox-instructions h3{font-family:"Bricolage G
   color: var(--faint);
   line-height: 1.5;
 }
+.provenance-with-hint { display: inline-flex; align-items: center; gap: 0.25rem; }
+.chart-panel-header h3 { display: inline-flex; align-items: center; }
 
 /* ── Info hint (hover/focus definition tooltip) ───────────── */
 .info-hint {
