@@ -184,9 +184,27 @@ Local setup: copy `.env.example` → `.env` / `.env.local`. Browser vars: `apps/
 ```bash
 nvm use          # Node 20
 pnpm install
-pnpm verify      # 13/13 checks
-pnpm dev         # API :3001, web :5173
+pnpm verify              # 13/13 connectivity checks
+pnpm fireblocks:whoami   # confirm Fireblocks auth via the official CLI
+pnpm dev                 # API :3001, web :5173
 ```
+
+### Fireblocks CLI
+
+The official `@fireblocks/fireblocks-cli` is wired in (devDependency). `scripts/fireblocks-cli.mjs`
+loads this repo's `.env` / `.env.local` and maps the credential conventions
+(`FIREBLOCKS_PRIVATE_KEY` / `FIREBLOCKS_SECRET_KEY_PATH` / `FIREBLOCKS_BASE_PATH`) onto the CLI's
+env names, so every command runs against the sandbox with no extra setup:
+
+```bash
+pnpm fireblocks whoami                                  # verify credentials authenticate
+pnpm fireblocks vaults get-paged-vault-accounts --json  # read vault accounts
+pnpm fireblocks help-index                              # full command catalog (LLM-friendly)
+pnpm fireblocks transactions create-transaction --data '{...}' --dry-run  # preview a write
+```
+
+`pnpm fireblocks:test-auth` now runs the official CLI's `whoami`. The richer hand-rolled PEM/JWT
+diagnostics remain available as `pnpm fireblocks:test-auth:diagnostics` for deeper debugging.
 
 ---
 
@@ -199,7 +217,7 @@ pnpm dev         # API :3001, web :5173
 | Fireblocks signature error | `FIREBLOCKS_PRIVATE_KEY` must pair with `FIREBLOCKS_API_KEY`; use `\n` escapes |
 | Postgres SSL error | Use Neon URL with `sslmode=require` |
 | 401 / "Malformed JWT" from web | Set `VITE_API_TOKEN` = Render `API_VIEWER_TOKEN`. This is app auth, not Fireblocks JWT. |
-| Fireblocks JWT debug | `pnpm fireblocks:test-auth` or UI **FB Auth Diagnostics** / `GET /health/fireblocks/auth-diagnostics` |
+| Fireblocks JWT debug | `pnpm fireblocks:whoami` (official CLI), `pnpm fireblocks:test-auth:diagnostics` (deep PEM/JWT), or UI **FB Auth Diagnostics** / `GET /health/fireblocks/auth-diagnostics` |
 | Port in use locally | Kill stale `node` on :3001 / :5173, restart `pnpm dev` |
 
 ---

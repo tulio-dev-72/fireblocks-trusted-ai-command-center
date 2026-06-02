@@ -14,13 +14,19 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "verify": "node scripts/verify-connectivity.mjs",
-    "fireblocks:test-auth": "node scripts/fireblocks-test-auth.mjs",
+    "fireblocks": "node scripts/fireblocks-cli.mjs",
+    "fireblocks:whoami": "node scripts/fireblocks-cli.mjs whoami",
+    "fireblocks:vaults": "node scripts/fireblocks-cli.mjs vaults get-paged-vault-accounts --json",
+    "fireblocks:help": "node scripts/fireblocks-cli.mjs help-index",
+    "fireblocks:test-auth": "node scripts/fireblocks-cli.mjs whoami",
+    "fireblocks:test-auth:diagnostics": "node scripts/fireblocks-test-auth.mjs",
     "fireblocks:seed-sandbox": "node scripts/fireblocks-seed-sandbox.mjs",
     "build:web": "pnpm --filter @taicc/shared-types build && pnpm --filter @taicc/web build:vercel",
     "deploy:render": "node scripts/deploy-render-api.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {
+    "@fireblocks/fireblocks-cli": "1.0.9",
     "@types/node": "^22.10.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.2"
