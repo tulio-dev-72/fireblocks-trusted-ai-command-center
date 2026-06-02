@@ -1,24 +1,79 @@
-# MCP server (read-only Fireblocks tools)
+# MCP servers (Fireblocks + AI agents)
 
-The MCP server (`apps/mcp-server`) exposes **read-only** Fireblocks data to AI clients (Cursor, Claude Desktop, etc.) via the [Model Context Protocol](https://modelcontextprotocol.io).
+This repo connects AI clients (Cursor, Claude Desktop, etc.) to Fireblocks over the
+[Model Context Protocol](https://modelcontextprotocol.io) using **three** servers. The first two
+are **official Fireblocks** servers and are the recommended path; the third is a thin,
+app-integrated server kept for audit-logged reads that flow through this repo's data layer.
 
-It is **not** deployed to Vercel, Render, or Railway. MCP uses **stdio** (stdin/stdout JSON-RPC): your IDE spawns the process locally and talks to it over pipes. That is the standard MCP transport for desktop agents.
+| Server | Source | Transport | Scope | Use it for |
+|--------|--------|-----------|-------|------------|
+| `fireblocks-docs` | Official — Documentation MCP | HTTP | Read-only docs | Grounding your agent in current Fireblocks docs |
+| `fireblocks` | Official — AI Link (Local), `@fireblocks/mcp-server` | stdio | Live workspace data (read-only by default) | Natural-language access to vaults, balances, transactions |
+| `fireblocks-trusted-ai` | This repo — `apps/mcp-server` | stdio | Read-only via `@taicc/data-layer` | Reads that also write to the Postgres audit store and honor demo / hybrid / real data modes |
 
-Cloud deployment targets in [DEPLOYMENT.md](../DEPLOYMENT.md) are:
+Copy the combined example and adjust paths/keys:
 
-| Service | Where it runs |
-|---------|----------------|
-| Web UI | Vercel |
-| REST API | Render / Railway |
-| Postgres | Neon |
-| Redis | Upstash |
-| **MCP** | **Your machine** (spawned by Cursor) |
-
-The MCP server loads the **same backend secrets** as the API (Fireblocks, Postgres, LLM keys) from `.env.local` — never from the browser.
+```bash
+cp config/mcp.cursor.example.json .cursor/mcp.json
+```
 
 ---
 
-## Tools (read-only)
+## 1. Fireblocks Documentation MCP (install first)
+
+Gives your coding agent real-time access to Fireblocks developer docs. No credentials.
+
+Cursor / any MCP client (`.cursor/mcp.json`):
+
+```json
+{ "mcpServers": { "fireblocks-docs": { "url": "https://developers.fireblocks.com/mcp" } } }
+```
+
+Claude Code:
+
+```bash
+claude mcp add --transport http fireblocks-docs https://developers.fireblocks.com/mcp
+```
+
+---
+
+## 2. Fireblocks AI Link — Local MCP (`@fireblocks/mcp-server`)
+
+The official open-source server that connects agents to your **live** Fireblocks workspace.
+Read-only by default; write operations (e.g. `create_transaction`) require an explicit opt-in.
+This is the recommended replacement for a hand-rolled Fireblocks data MCP.
+
+```json
+{
+  "mcpServers": {
+    "fireblocks": {
+      "command": "npx",
+      "args": ["-y", "@fireblocks/mcp-server"],
+      "env": {
+        "FIREBLOCKS_API_KEY": "your-sandbox-api-key",
+        "FIREBLOCKS_PRIVATE_KEY_PATH": "/abs/path/to/fireblocks_secret.key",
+        "ENABLE_WRITE_OPERATIONS": "false",
+        "FIREBLOCKS_API_BASE_URL": "https://sandbox-api.fireblocks.io/v1"
+      }
+    }
+  }
+}
+```
+
+- Keep `ENABLE_WRITE_OPERATIONS=false` unless you explicitly need transaction creation from the agent.
+- Use the sandbox base URL above for this project; production is `https://api.fireblocks.io/v1`.
+
+---
+
+## 3. App-integrated MCP (`apps/mcp-server`) — optional
+
+A thin stdio JSON-RPC server that exposes the same read-only Fireblocks data **through this repo's
+`@taicc/data-layer`**, so every tool call is recorded in the Postgres audit store and honors the
+`DEMO_MODE` / `HYBRID_MODE` / `REAL_FIREBLOCKS` data routing the rest of the platform uses. Prefer
+the official AI Link (Local) server above for raw workspace data; use this one when you want those
+app-specific guarantees (audit trail + demo modes).
+
+### Tools (read-only)
 
 | Tool | Description |
 |------|-------------|
@@ -33,26 +88,12 @@ The MCP server loads the **same backend secrets** as the API (Fireblocks, Postgr
 
 Transaction draft, submit, sign, and approval tools are **disabled** (same execution boundary as the REST API).
 
----
-
-## Prerequisites
-
-1. Repo cloned and dependencies installed: `pnpm install`
-2. `.env.local` configured (see [SETUP.md](./SETUP.md)) with Fireblocks sandbox credentials
-3. MCP package built: `pnpm turbo run build --filter=@taicc/mcp-server`
-
----
-
-## Cursor configuration
-
-Copy the example and adjust the absolute path to your clone:
+### Build + config
 
 ```bash
-cp config/mcp.cursor.example.json .cursor/mcp.json
-# Edit .cursor/mcp.json — replace /path/to/fireblocks-trusted-ai-command-center
+pnpm install
+pnpm turbo run build --filter=@taicc/mcp-server
 ```
-
-Or add manually in **Cursor Settings → MCP → Add server**:
 
 ```json
 {
@@ -64,9 +105,7 @@ Or add manually in **Cursor Settings → MCP → Add server**:
         "/path/to/fireblocks-trusted-ai-command-center/scripts/load-env.cjs",
         "/path/to/fireblocks-trusted-ai-command-center/apps/mcp-server/dist/index.js"
       ],
-      "env": {
-        "NODE_ENV": "development"
-      }
+      "env": { "NODE_ENV": "development" }
     }
   }
 }
@@ -74,37 +113,9 @@ Or add manually in **Cursor Settings → MCP → Add server**:
 
 `load-env.cjs` reads `.env.local` from the repo root so you do not paste secrets into the MCP config.
 
-Restart Cursor after saving. The server appears as **fireblocks-trusted-ai** with the tools listed above.
-
----
-
-## Claude Desktop (optional)
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
-
-```json
-{
-  "mcpServers": {
-    "fireblocks-trusted-ai": {
-      "command": "node",
-      "args": [
-        "-r",
-        "/path/to/fireblocks-trusted-ai-command-center/scripts/load-env.cjs",
-        "/path/to/fireblocks-trusted-ai-command-center/apps/mcp-server/dist/index.js"
-      ]
-    }
-  }
-}
-```
-
----
-
-## Verify
+### Verify
 
 ```bash
-pnpm turbo run build --filter=@taicc/mcp-server
-
-# Smoke test (one JSON-RPC line in, one line out)
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | \
   node -r ./scripts/load-env.cjs apps/mcp-server/dist/index.js
 ```
@@ -113,16 +124,8 @@ You should see a JSON response with the tool list.
 
 ---
 
-## Production / remote API
+## Notes
 
-For a **public** deployment, operators use the **Vercel web UI** and **REST API** on Render/Railway. MCP remains a **local developer integration** unless you add a separate HTTP/SSE MCP transport (not implemented in this repo).
-
-To point MCP at production Postgres audit while running locally, set `DATABASE_URL` in `.env.local` to your Neon URL. Fireblocks and LLM keys stay in `.env.local` only — never in Cursor project settings or Git.
-
----
-
-## Security notes
-
-- MCP inherits `REAL_FIREBLOCKS=true` fail-closed behavior from `@taicc/config`.
-- All tool calls log to the Postgres audit store when `AUDIT_STORE=postgres`.
-- Do not commit `.cursor/mcp.json` if it contains inline secrets (the example uses `load-env.cjs` instead).
+- None of the stdio MCP servers are deployed to Vercel/Render/Railway — MCP is a local developer integration spawned by your IDE.
+- The app-integrated server inherits `REAL_FIREBLOCKS=true` fail-closed behavior from `@taicc/config`, and logs tool calls to the Postgres audit store when `AUDIT_STORE=postgres`.
+- Do not commit `.cursor/mcp.json` if it contains inline secrets.

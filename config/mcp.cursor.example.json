@@ -1,5 +1,18 @@
 {
   "mcpServers": {
+    "fireblocks-docs": {
+      "url": "https://developers.fireblocks.com/mcp"
+    },
+    "fireblocks": {
+      "command": "npx",
+      "args": ["-y", "@fireblocks/mcp-server"],
+      "env": {
+        "FIREBLOCKS_API_KEY": "your-sandbox-api-key",
+        "FIREBLOCKS_PRIVATE_KEY_PATH": "/path/to/fireblocks-trusted-ai-command-center/fireblocks_secret.key",
+        "ENABLE_WRITE_OPERATIONS": "false",
+        "FIREBLOCKS_API_BASE_URL": "https://sandbox-api.fireblocks.io/v1"
+      }
+    },
     "fireblocks-trusted-ai": {
       "command": "node",
       "args": [

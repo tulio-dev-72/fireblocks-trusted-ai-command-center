@@ -1,6 +1,11 @@
 /**
- * MCP Server — read-only Fireblocks data tools via data layer.
+ * App-integrated MCP server — read-only Fireblocks data tools via @taicc/data-layer.
  * Transaction execution, signing, and draft preparation are disabled.
+ *
+ * For raw live-workspace data, prefer the official Fireblocks AI Link (Local) MCP
+ * (@fireblocks/mcp-server) and the Documentation MCP — see docs/MCP.md. This server
+ * is kept for reads that must flow through this repo's audit pipeline and honor the
+ * DEMO_MODE / HYBRID_MODE / REAL_FIREBLOCKS data routing.
  */
 import { createInterface } from "node:readline";
 import { loadConfig, resolveDataMode, buildFireblocksClientOptions } from "@taicc/config";
