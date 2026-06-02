@@ -212,8 +212,8 @@ importers:
   packages/fireblocks-client:
     dependencies:
       '@fireblocks/ts-sdk':
-        specifier: ^12.0.0
-        version: 12.1.2
+        specifier: 20.0.0
+        version: 20.0.0
       '@taicc/audit':
         specifier: workspace:*
         version: link:../audit
@@ -671,8 +671,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@fireblocks/ts-sdk@12.1.2':
-    resolution: {integrity: sha512-BwIRppiP8eur4c/iUN+bPzYdHI3x5wNkChV4HUGz0+oTmPDdwAwlFeT7tLLlp6m1IzBrJv2xDkiEm9X1UCIwWg==}
+  '@fireblocks/ts-sdk@20.0.0':
+    resolution: {integrity: sha512-F92znuKWJoukZHth40zgHdZaWAgojqLx+a91eRmuJjGu0J8DFhu33k80nmNy/DKpFlkVKDo1kMGFVIYUxqP8Hw==}
 
   '@ioredis/commands@1.5.1':
     resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
@@ -2043,7 +2043,7 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
-  '@fireblocks/ts-sdk@12.1.2':
+  '@fireblocks/ts-sdk@20.0.0':
     dependencies:
       axios: 1.16.1
       jsonwebtoken: 9.0.3
