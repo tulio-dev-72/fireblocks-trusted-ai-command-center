@@ -217,7 +217,7 @@ diagnostics remain available as `pnpm fireblocks:test-auth:diagnostics` for deep
 | Fireblocks signature error | `FIREBLOCKS_PRIVATE_KEY` must pair with `FIREBLOCKS_API_KEY`; use `\n` escapes |
 | Postgres SSL error | Use Neon URL with `sslmode=require` |
 | 401 / "Malformed JWT" from web | Set `VITE_API_TOKEN` = Render `API_VIEWER_TOKEN`. This is app auth, not Fireblocks JWT. |
-| Fireblocks JWT debug | `pnpm fireblocks:whoami` (official CLI), `pnpm fireblocks:test-auth:diagnostics` (deep PEM/JWT), or UI **FB Auth Diagnostics** / `GET /health/fireblocks/auth-diagnostics` |
+| Fireblocks JWT debug | `pnpm fireblocks:whoami` (official CLI), `pnpm fireblocks:test-auth:diagnostics` (deep PEM/JWT), or UI **FB Auth Diagnostics**. HTTP `GET /v1/fireblocks/auth-diagnostics` and `GET /health/fireblocks/auth-diagnostics` both require the app bearer token (`Authorization: Bearer <API_VIEWER_TOKEN>`, or `dev-token` locally). |
 | Port in use locally | Kill stale `node` on :3001 / :5173, restart `pnpm dev` |
 
 ---

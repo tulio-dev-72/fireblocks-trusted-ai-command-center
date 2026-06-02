@@ -102,7 +102,7 @@ export async function apiPostSandboxAdmin<T>(path: string, body: unknown): Promi
   return data as T;
 }
 
-/** Fireblocks auth diagnostics — works without platform JWT via health endpoint */
+/** Fireblocks auth diagnostics — authenticated (sends the app bearer token). */
 export async function fetchFireblocksAuthDiagnostics() {
   const res = await fetch(`${API_URL}/v1/fireblocks/auth-diagnostics`, {
     headers: buildAuthHeaders(),

@@ -321,6 +321,23 @@ async function handleRequest(
     }
 
     if (path === "/health/fireblocks/auth-diagnostics" && req.method === "GET") {
+      // Returns sensitive operational detail (masked API key, key path, JWT
+      // structure, connectivity), so require the same app bearer as /v1. The web
+      // UI already calls the authenticated /v1 route; this guards raw access.
+      try {
+        authenticate(req);
+      } catch {
+        json(
+          res,
+          401,
+          errorBody(
+            "UNAUTHORIZED",
+            "Fireblocks auth diagnostics require a valid API bearer token.",
+            correlationId,
+          ),
+        );
+        return;
+      }
       const appBearer = extractBearerToken(req.headers.authorization);
       const diagnostics = await buildFireblocksAuthDiagnosticsResponse(appBearer);
       const statusCode = diagnostics.auth_test.ok ? 200 : 503;
